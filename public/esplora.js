@@ -64,7 +64,9 @@ async function vistaSquadra(ab) {
       u.map((x) => `<div class="riga rg"><div class="lg">${logo(x.avv, 22)}<div><div style="font-weight:500">${x.casa ? "in casa con" : "in trasferta da"} ${esc(nomeSq(S.squadre, x.avv))}</div><div class="s">${esc(x.data.slice(0, 10))}</div></div></div><b style="color:${x.vinta ? GR : RD}">${x.pf}-${x.pa}</b></div>`).join("") + `</div>`;
   }
   if (S.giocatori.length) h += `<h2>Giocatori</h2><div class="card">` + S.giocatori.map((x, i) => `<a class="riga rg" href="#/giocatore/${esc(x.pid)}" style="color:inherit${i ? "" : ";border-top:0"}"><div class="lg">${foto(x.pid, 30)}<div style="min-width:0"><b>${esc(x.nome)}</b>${x.inf ? ` <span class="pill" style="color:${x.inf.stato === "out" ? RD : AM}">${x.inf.stato === "out" ? "Fuori" : "Dubbio"}</span>` : ""}<div class="s">${Math.round(x.min)} minuti</div></div></div><span class="s" style="text-align:right"><b style="color:#fff">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span></a>`).join("") + `<div class="cap" style="margin:8px 0 0">Medie della stagione per partita.</div></div>`;
+  h += `<h2>Ultime notizie</h2><div id="sqNews"><div class="skel"></div></div>`;
   APP.innerHTML = h;
+  try { const R = await api("/api/news?s=" + encodeURIComponent(ab), 300000); const el = document.getElementById("sqNews"); if (el) el.innerHTML = R.news.length ? R.news.slice(0, 8).map(cardNews).join("") + `<a class="chipbtn" href="#/news/${esc(ab)}" style="display:inline-block;margin-top:6px">Tutte le notizie</a><div class="cap">Titoli tradotti in automatico; l'articolo si apre in inglese.</div>` : `<div class="vuoto">Nessuna notizia al momento.</div>`; } catch { const el = document.getElementById("sqNews"); if (el) el.innerHTML = `<div class="vuoto">Notizie non disponibili ora.</div>`; }
 }
 
 async function vistaCerca() {
@@ -121,6 +123,7 @@ async function vistaStasera() {
 
 // ---------- NEWS: ultime notizie della lega o di una squadra (ESPN, titoli tradotti in automatico)
 const quandoFa = (iso) => { const t = Date.parse(iso); if (!t) return ""; const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `${Math.max(m, 1)} min fa` : m < 1440 ? (Math.round(m / 60) === 1 ? "1 ora fa" : `${Math.round(m / 60)} ore fa`) : (Math.round(m / 1440) === 1 ? "1 giorno fa" : `${Math.round(m / 1440)} giorni fa`); };
+const cardNews = (n) => `<a class="card nws" href="${esc(n.url)}" target="_blank" rel="noopener">${n.img ? `<img class="nimg" loading="lazy" alt="" src="${esc(n.img)}" onerror="this.style.display='none'">` : ""}<div style="min-width:0"><div style="font-weight:600;line-height:1.3">${esc(n.titoloIt || n.titolo)}</div>${n.titoloIt && n.titoloIt !== n.titolo ? `<div class="s" style="margin-top:3px;line-height:1.35">${esc(n.titolo)}</div>` : n.desc ? `<div class="s" style="margin-top:3px;line-height:1.35">${esc(n.desc.slice(0, 140))}</div>` : ""}<div class="s" style="margin-top:4px">${esc(quandoFa(n.data))}${n.autore ? " · " + esc(n.autore) : ""} · ESPN</div></div></a>`;
 async function vistaNews(ab) {
   const back = ab ? `<a class="back" href="javascript:history.back()"><i class="ti ti-chevron-left"></i>Indietro</a>` : "";
   const top = ab ? back : topBar() + segEsplora("n"); APP.innerHTML = top + skel();
@@ -130,7 +133,7 @@ async function vistaNews(ab) {
   if (ab) h += `<div class="lg" style="margin:6px 0 4px">${logo(ab, 40)}<h2 style="margin:0;font-size:22px">Notizie ${esc(ab)}</h2></div><a class="chipbtn" href="#/squadra/${esc(ab)}" style="display:inline-block;margin-bottom:6px">Pagina della squadra</a>`;
   else if (mie.length) h += `<div class="tabs" style="flex-wrap:wrap"><a class="chipbtn on" href="#/news">Tutte</a>${mie.map((s) => `<a class="chipbtn" href="#/news/${esc(s)}">${logo(s, 16)} ${esc(s)}</a>`).join("")}</div>`;
   if (!R.news.length) h += `<div class="vuoto">Nessuna notizia al momento.</div>`;
-  h += R.news.map((n) => `<a class="card nws" href="${esc(n.url)}" target="_blank" rel="noopener">${n.img ? `<img class="nimg" loading="lazy" alt="" src="${esc(n.img)}" onerror="this.style.display='none'">` : ""}<div style="min-width:0"><div style="font-weight:600;line-height:1.3">${esc(n.titoloIt || n.titolo)}</div>${n.titoloIt && n.titoloIt !== n.titolo ? `<div class="s" style="margin-top:3px;line-height:1.35">${esc(n.titolo)}</div>` : n.desc ? `<div class="s" style="margin-top:3px;line-height:1.35">${esc(n.desc.slice(0, 140))}</div>` : ""}<div class="s" style="margin-top:4px">${esc(quandoFa(n.data))}${n.autore ? " · " + esc(n.autore) : ""} · ESPN</div></div></a>`).join("");
+  h += R.news.map(cardNews).join("");
   h += `<div class="cap">Notizie di ESPN. Il titolo è tradotto in automatico dall'inglese (sotto, quello originale): toccando una notizia si apre l'articolo, in inglese.</div>`;
   APP.innerHTML = h;
 }
