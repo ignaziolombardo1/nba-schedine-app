@@ -276,6 +276,13 @@ async function telegram(env, testo) {
   if (!r.ok) throw new Error(`Telegram ${r.status} ${(await r.text()).slice(0, 100)}`);
 }
 const pc = (x) => Math.round(x * 100) + "%";
+// ultimo giro del cron: lo legge la pagina di controllo per dire se gira davvero
+async function segnaCron(env, nome, esito) {
+  if (!dbOk(env)) return;
+  const S = (await rigaForma(env, "_cron").catch(() => null)) || {};
+  S[nome] = { t: new Date().toISOString(), esito: JSON.stringify(esito ?? "ok").slice(0, 160) };
+  await salvaRigaForma(env, "_cron", S);
+}
 async function cronAvvisi(env) {
   if (!dbOk(env)) return { saltato: "serve Supabase" };
   const conTelegram = env.TELEGRAM_TOKEN && env.TELEGRAM_CHAT_ID, conPush = ((await rigaForma(env, "_push").catch(() => null)) || { subs: [] }).subs.length > 0;
@@ -359,6 +366,23 @@ async function apiDiag(env) {
   await prova("Pagina squadra", async () => { const sg = (gg && gg.partite[0] && gg.partite[0].casa) || "BOS", c = await caricaCalendarioSquadra(sg); return `${sg}: ${c.fatte.length} risultati, ${c.prossime.length} prossime partite`; });
   await prova("Lista infortunati e foto", async () => { const l = await caricaListaInfortuni(), st = stat || (await caricaStatistiche()), nomi = new Set(st.players.map((q) => q.nome.trim().toLowerCase())); const senza = l.filter((x) => !x.pid && !nomi.has(x.nome.trim().toLowerCase())).length; if (!l.length) throw new Error("lista vuota"); return `${l.length} infortunati, ${l.length - senza} con foto${senza ? `, ${senza} senza identificativo` : ""}`; });
   await prova("Schedine sincronizzate", async () => { if (!dbOk(env)) throw new Error("serve Supabase"); const el = (await rigaForma(env, "_push").catch(() => null)) || { subs: [] }; return `${el.subs.length} telefoni con notifiche, ${el.subs.filter((x) => x.codice).length} con codice di sincronizzazione`; });
+  await prova("Controllo notifiche (cron ogni 5 minuti)", async () => {
+    if (!dbOk(env)) throw new Error("serve Supabase");
+    const c = ((await rigaForma(env, "_cron").catch(() => null)) || {}).avvisi;
+    if (!c) throw new Error("non ancora eseguito: se il deploy è fresco attendi qualche minuto; se resta così Cloudflare non ha attivato il cron */5 (si torna a ogni 30 minuti)");
+    const min = Math.round((Date.now() - Date.parse(c.t)) / 60000);
+    if (min > 20) throw new Error(`ultimo giro ${min} minuti fa: il cron non gira ogni 5 minuti (ultimo esito ${c.esito})`);
+    return `ultimo giro ${min} minuti fa · ${c.esito}`;
+  });
+  await prova("Pagine con dati vuoti", async () => {
+    const v = [], c = await caricaClassifica().catch(() => null), l = await caricaListaInfortuni().catch(() => null);
+    if (!c || !c.Est.length || !c.Ovest.length) v.push("classifica");
+    if (!l || !l.length) v.push("infortunati");
+    if (stat && !stat.players.length) v.push("giocatori");
+    if (gg && !gg.partite.length && !gg.ieri.length) v.push("partite (oggi e ieri vuote)");
+    if (v.length) throw new Error("vuote o non leggibili: " + v.join(", "));
+    return "tutte le pagine hanno dati";
+  });
   await prova("Registro consigli (Supabase)", async () => { if (!dbOk(env)) throw new Error("secrets SUPABASE_URL / SUPABASE_KEY mancanti"); const r = await db(env, "GET", { params: { select: "chiave", limit: "5000" } }); return `${r.length} consigli salvati`; });
   await prova("Forma recente giocatori", async () => { if (!dbOk(env)) throw new Error("serve Supabase"); const f = await leggiForma(env); if (f.errore) throw new Error(f.errore + " (hai creato la tabella nba_forma?)"); const s = f.stato || {}; return `${f.n} giocatori con le ultime 10 partite${s.ultimo ? `, ultimo aggiornamento ${s.ultimo.slice(0, 16)}, ${s.falliti} falliti, ${s.da_fare} da fare` : ", nessun aggiornamento ancora"}${s.errore ? ", errore: " + s.errore : ""}`; });
   await prova("Quote bookmaker (The Odds API)", async () => {
@@ -608,7 +632,7 @@ export default {
   },
   // ogni 30 minuti: salva i consigli delle partite che non sono iniziate e verifica quelle finite
   async scheduled(event, env, ctx) {
-    if (event.cron === "*/5 * * * *") { ctx.waitUntil(cronAvvisi(env).catch(() => {})); return; }
+    if (event.cron === "*/5 * * * *") { ctx.waitUntil(cronAvvisi(env).then((r) => segnaCron(env, "avvisi", r), (e) => segnaCron(env, "avvisi", { errore: String(e.message || e) })).catch(() => {})); return; }
     if (event.cron === "20,50 * * * *") { ctx.waitUntil(cronQuote(env).catch(() => {})); ctx.waitUntil(aggiornaSquadre(env).catch(() => {})); return; }
     if (event.cron === "10,40 * * * *") { ctx.waitUntil(aggiornaForma(env).catch(() => {})); return; }
     ctx.waitUntil((async () => {

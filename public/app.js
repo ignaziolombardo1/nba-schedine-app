@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); if (k === "registro") setTimeout(() => aggiornaBadge(), 0); } catch {} } };
-const VERSIONE = "78";
+const VERSIONE = "79";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -259,7 +259,7 @@ function avvisiDati(D, daCache) {
   let h = "";
   const eta = D.aggiornato ? Math.round((Date.now() - Date.parse(D.aggiornato)) / 60000) : null;
   if (daCache) h += `<div class="avv"><i class="ti ti-refresh"></i> Dati salvati sul telefono${eta != null ? " (di " + (eta < 60 ? eta + " minuti" : Math.round(eta / 60) + " ore") + " fa)" : ""}: aggiorno…</div>`;
-  else if (eta != null && eta > 15) h += `<div class="avv warn"><i class="ti ti-clock-exclamation"></i> Ultimo aggiornamento ${eta < 60 ? eta + " minuti" : Math.round(eta / 60) + " ore"} fa: l'app non è riuscita a ricaricare. Tocca «Aggiorna ora» in fondo.</div>`;
+  else if (eta != null && eta > 60 && giorno === 0) h += `<div class="avv warn"><i class="ti ti-clock-exclamation"></i> Dati di ${Math.round(eta / 60)} ${Math.round(eta / 60) === 1 ? "ora" : "ore"} fa: non riesco ad aggiornarli. <a href="#/diag" style="text-decoration:underline">Dettagli</a></div>`;
   for (const x of D.salute || []) h += `<div class="avv ${x.liv === "err" ? "err" : "warn"}"><i class="ti ti-alert-triangle"></i> ${esc(x.t)} <a href="#/diag" style="text-decoration:underline">Dettagli</a></div>`;
   return h;
 }
