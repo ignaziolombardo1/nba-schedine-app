@@ -1,7 +1,7 @@
 import { info, nome, SQUADRE } from "./squadre.js";
 import { proiettaPartita, proiettaGiocatori, consigli, proposte, proposteQuota, valuta, phi, STD, frazioneGara, probLive, segnaliLive } from "./modello.js";
 import { aggiornaQuote, chiaveGara } from "./quote.js";
-import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni } from "./espn.js";
+import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni, caricaNews } from "./espn.js";
 
 const arr = (k, v) => (typeof v === "number" && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
 const J = (o, ttl = 0) => new Response(JSON.stringify(o, arr), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": ttl ? `public, max-age=${ttl}` : "no-store", "access-control-allow-origin": "*" } });
@@ -355,6 +355,25 @@ async function cronAvvisi(env) {
   return { inviati: fatto };
 }
 
+
+// ---- Traduzione dei titoli delle notizie (MyMemory, gratuita): ogni titolo si traduce una volta sola e resta salvato
+async function traduciTitoli(env, righe) {
+  let C = {}; if (dbOk(env)) C = ((await rigaForma(env, "_trad").catch(() => null)) || {}).m || {};
+  let nuovi = 0, cambiato = false, finita = false;
+  for (const r of righe) {
+    const k = r.titolo.slice(0, 180);
+    if (C[k]) { r.titoloIt = C[k]; continue; }
+    if (finita || nuovi >= 10) continue; nuovi++;
+    try {
+      const u = new URL("https://api.mymemory.translated.net/get"); u.searchParams.set("q", k); u.searchParams.set("langpair", "en|it"); if (env.MYMEMORY_EMAIL) u.searchParams.set("de", env.MYMEMORY_EMAIL);
+      const res = await fetch(u.toString()), j = await res.json(), t = String((j.responseData || {}).translatedText || "").trim();
+      if (!res.ok || /MYMEMORY WARNING|QUERY LENGTH|INVALID/i.test(t) || j.quotaFinished || !t) { finita = true; continue; }
+      C[k] = t; r.titoloIt = t; cambiato = true;
+    } catch { finita = true; }
+  }
+  if (cambiato && dbOk(env)) { const chiavi = Object.keys(C); if (chiavi.length > 400) for (const x of chiavi.slice(0, chiavi.length - 400)) delete C[x]; await salvaRigaForma(env, "_trad", { m: C }).catch(() => {}); }
+  return righe;
+}
 async function apiDiag(env) {
   const v = [], prova = async (nome, fn) => { try { v.push({ nome, ok: true, dettaglio: String(await fn()) }); } catch (e) { v.push({ nome, ok: false, dettaglio: String(e.message || e) }); } };
   let gg = null, stat = null;
@@ -383,6 +402,7 @@ async function apiDiag(env) {
     if (v.length) throw new Error("vuote o non leggibili: " + v.join(", "));
     return "tutte le pagine hanno dati";
   });
+  await prova("Notizie ESPN", async () => { const n = await caricaNews(null, 5); if (!n.length) throw new Error("nessuna notizia"); return `${n.length} notizie, ultima: ${n[0].titolo.slice(0, 60)}`; });
   await prova("Registro consigli (Supabase)", async () => { if (!dbOk(env)) throw new Error("secrets SUPABASE_URL / SUPABASE_KEY mancanti"); const r = await db(env, "GET", { params: { select: "chiave", limit: "5000" } }); return `${r.length} consigli salvati`; });
   await prova("Forma recente giocatori", async () => { if (!dbOk(env)) throw new Error("serve Supabase"); const f = await leggiForma(env); if (f.errore) throw new Error(f.errore + " (hai creato la tabella nba_forma?)"); const s = f.stato || {}; return `${f.n} giocatori con le ultime 10 partite${s.ultimo ? `, ultimo aggiornamento ${s.ultimo.slice(0, 16)}, ${s.falliti} falliti, ${s.da_fare} da fare` : ", nessun aggiornamento ancora"}${s.errore ? ", errore: " + s.errore : ""}`; });
   await prova("Quote bookmaker (The Odds API)", async () => {
@@ -606,6 +626,10 @@ export default {
         for (const x of l) { if (!x.sq) x.sq = perNome[x.nomeSq.toLowerCase()] || null; if (x.sq) sq[x.sq] = info(x.sq); }
         const ord = { out: 0, dubbio: 1, giorno: 2 };
         return J({ giocatori: l.filter((x) => x.sq).sort((a, b) => ord[a.stato] - ord[b.stato] || a.sq.localeCompare(b.sq) || a.nome.localeCompare(b.nome)), squadre: sq }, 600);
+      }
+      if (p === "/api/news") {
+        const sg = (url.searchParams.get("s") || "").toUpperCase(); if (sg && !/^[A-Z]{2,4}$/.test(sg)) return ERR("sigla non valida", 400);
+        const n = await traduciTitoli(env, await caricaNews(sg || null)); return J({ s: sg || null, news: n }, 600);
       }
       if (p === "/api/classifica") { const c = await caricaClassifica(), sq = {}; for (const k of ["Est", "Ovest"]) for (const x of c[k]) sq[x.ab] = info(x.ab); return J({ ...c, squadre: sq }, 900); }
       if (p === "/api/calendario") { const da = dp && /^\d{8}$/.test(dp) ? dp : romaYMD(Date.now()), giorni = await caricaCalendario(da), sq = {}; for (const g of giorni) for (const x of g.partite) { sq[x.casa] = info(x.casa); sq[x.trasf] = info(x.trasf); } return J({ da, giorni, squadre: sq }, 600); }

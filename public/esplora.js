@@ -11,7 +11,7 @@ function aggiornaBadge() {
 }
 
 // ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
-const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["n", "news", "News"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
 const rigaEsplora = () => segEsplora(null);
 const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
 const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
@@ -115,6 +115,23 @@ async function vistaStasera() {
       (out.length ? `<div class="s" style="margin-top:4px;color:${RD}">Fuori: ${out.map((i) => esc(i.nome) + " (" + esc(T(D, i.sq).b) + ")").join(", ")}</div>` : "") +
       (dub.length ? `<div class="s" style="margin-top:2px;color:${AM}">In dubbio: ${dub.map((i) => esc(i.nome)).join(", ")}</div>` : "") + `</a>`;
   }
+  APP.innerHTML = h;
+}
+
+
+// ---------- NEWS: ultime notizie della lega o di una squadra (ESPN, titoli tradotti in automatico)
+const quandoFa = (iso) => { const t = Date.parse(iso); if (!t) return ""; const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `${Math.max(m, 1)} min fa` : m < 1440 ? (Math.round(m / 60) === 1 ? "1 ora fa" : `${Math.round(m / 60)} ore fa`) : (Math.round(m / 1440) === 1 ? "1 giorno fa" : `${Math.round(m / 1440)} giorni fa`); };
+async function vistaNews(ab) {
+  const back = ab ? `<a class="back" href="javascript:history.back()"><i class="ti ti-chevron-left"></i>Indietro</a>` : "";
+  const top = ab ? back : topBar() + segEsplora("n"); APP.innerHTML = top + skel();
+  const mie = pref().sq; let R;
+  try { R = await api("/api/news" + (ab ? "?s=" + encodeURIComponent(ab) : ""), 300000); } catch (e) { APP.innerHTML = top + errBox(e); return; }
+  let h = top;
+  if (ab) h += `<div class="lg" style="margin:6px 0 4px">${logo(ab, 40)}<h2 style="margin:0;font-size:22px">Notizie ${esc(ab)}</h2></div><a class="chipbtn" href="#/squadra/${esc(ab)}" style="display:inline-block;margin-bottom:6px">Pagina della squadra</a>`;
+  else if (mie.length) h += `<div class="tabs" style="flex-wrap:wrap"><a class="chipbtn on" href="#/news">Tutte</a>${mie.map((s) => `<a class="chipbtn" href="#/news/${esc(s)}">${logo(s, 16)} ${esc(s)}</a>`).join("")}</div>`;
+  if (!R.news.length) h += `<div class="vuoto">Nessuna notizia al momento.</div>`;
+  h += R.news.map((n) => `<a class="card nws" href="${esc(n.url)}" target="_blank" rel="noopener">${n.img ? `<img class="nimg" loading="lazy" alt="" src="${esc(n.img)}" onerror="this.style.display='none'">` : ""}<div style="min-width:0"><div style="font-weight:600;line-height:1.3">${esc(n.titoloIt || n.titolo)}</div>${n.titoloIt && n.titoloIt !== n.titolo ? `<div class="s" style="margin-top:3px;line-height:1.35">${esc(n.titolo)}</div>` : n.desc ? `<div class="s" style="margin-top:3px;line-height:1.35">${esc(n.desc.slice(0, 140))}</div>` : ""}<div class="s" style="margin-top:4px">${esc(quandoFa(n.data))}${n.autore ? " · " + esc(n.autore) : ""} · ESPN</div></div></a>`).join("");
+  h += `<div class="cap">Notizie di ESPN. Il titolo è tradotto in automatico dall'inglese (sotto, quello originale): toccando una notizia si apre l'articolo, in inglese.</div>`;
   APP.innerHTML = h;
 }
 

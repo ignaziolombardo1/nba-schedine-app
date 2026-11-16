@@ -349,3 +349,24 @@ export async function caricaListaInfortuni() {
   }
   return out;
 }
+
+// ---- Notizie (ESPN): tutte oppure di una squadra
+let _idSquadre = null;
+async function idSquadra(sigla) {
+  if (!_idSquadre) {
+    const d = await get(`${ESPN}/teams`, { limit: 40 }, 86400), m = {};
+    for (const t of (((d.sports || [])[0] || {}).leagues || [])[0]?.teams || []) { const x = t.team || {}; if (x.abbreviation && x.id) m[x.abbreviation.toUpperCase()] = String(x.id); }
+    _idSquadre = m;
+  }
+  return _idSquadre[String(sigla).toUpperCase()] || null;
+}
+export async function caricaNews(sigla = null, quante = 14) {
+  const params = { limit: quante };
+  if (sigla) { const id = await idSquadra(sigla); if (!id) throw new Error("squadra non trovata: " + sigla); params.team = id; }
+  const d = await get(`${ESPN}/news`, params, 600), out = [];
+  for (const a of d.articles || []) {
+    const titolo = String(a.headline || "").trim(); if (!titolo) continue;
+    out.push({ titolo, desc: String(a.description || "").trim(), data: String(a.published || a.lastModified || ""), url: ((a.links || {}).web || {}).href || ((a.links || {}).mobile || {}).href || "", img: ((a.images || []).find((i) => i.url) || {}).url || "", autore: String(a.byline || "").trim() });
+  }
+  return out.slice(0, quante);
+}

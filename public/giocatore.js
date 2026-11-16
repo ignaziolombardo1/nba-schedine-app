@@ -212,6 +212,7 @@ async function vistaStudio(id, force) {
   const picks = D.picks.filter((x) => x.g === id), r = p.r;
   const mer = ls.get("mercato", "Punti");
   let h = `<a class="back" href="#/"><i class="ti ti-chevron-left"></i>Partite</a>` + schedaPartita(D, p, picks[0], false);
+  h += `<div class="cap" style="margin:4px 0 0"><i class="ti ti-news"></i> Tocca il logo di una squadra per le sue ultime notizie.</div>`;
   // 1) i migliori delle due squadre con le loro medie
   if (p.giocatori.length) {
     h += `<h2>I migliori</h2><div class="card">` + [p.casa, p.trasf].map((sq, i) => {

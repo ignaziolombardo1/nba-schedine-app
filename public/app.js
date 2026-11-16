@@ -1,7 +1,7 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "80";
+const VERSIONE = "81";
 // ---------- router
 let timer = null;
 function route(force) {
@@ -16,6 +16,8 @@ function route(force) {
   else if (hsh.startsWith("/conto")) vistaConto();
   else if (hsh.startsWith("/classifica")) vistaClassifica();
   else if (hsh.startsWith("/calendario")) vistaCalendario();
+  else if (/^\/news\/[A-Za-z]{2,4}$/.test(hsh)) vistaNews(hsh.split("/")[2].toUpperCase());
+  else if (hsh.startsWith("/news")) vistaNews(null);
   else if (hsh.startsWith("/stasera")) vistaStasera();
   else if (hsh.startsWith("/cerca")) vistaCerca();
   else if (hsh.startsWith("/infortunati")) vistaInfortunati();
