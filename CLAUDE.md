@@ -25,6 +25,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 - Conto: riepilogo ultimi 7 giorni, «Le tue quote», «Il mio mese» (andamento, per tipo, punti deboli); Modello: taratura per fascia. Impostazioni: codice di sincronizzazione e backup file. Live: grafico dello scarto contro il previsto. `/#/diag` controlla anche le pagine Esplora. Esplora ha anche `#/stasera`. Aspetto (tema chiaro con filtro CSS, testo grande) e badge con le giocate aperte.
 
 - News: `#/news` e `#/news/XXX` (`/api/news?s=`, `caricaNews` in espn.js); i titoli sono tradotti con MyMemory (cache `_trad` in `nba_forma`, `MYMEMORY_EMAIL` facoltativo). Nello studio partita i loghi aprono la pagina squadra (`#/squadra/XXX`), che include una sezione «Ultime notizie».
+- Avvisi nel cron (`avvisiSchedine`, `riepilogoSera`): promemoria 18-42 minuti prima della prima partita di una schedina aperta, riepilogo serale con saldo del giorno per telefono (flag `avv.r` e `sera` nella riga `_reg_<codice>`). Esplora: `#/seguiti` (giocatori e squadre con ☆, forma, infortuni); Home: notizie dei preferiti (`notizieHome`); Registro: pulsante «Immagine» (`immagineSchedina`, canvas + condivisione). Tema chiaro vero con variabili (`html.chiaro` in style.css), non più filtro.
 
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

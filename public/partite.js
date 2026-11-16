@@ -125,6 +125,7 @@ function disegnaPartite(D, conPoll, daCache) {
   h += bannerErrore(D) + giocataDelGiorno(D);
   { const m = confrontoMercato(D); if (m) h += `<details class="dt"><summary>Confronto con i bookmaker</summary>${m}</details>`; }
   if (D.partite.length) h += riquadroPreferiti(D);
+  h += `<div id="hnews"></div>`;
   for (const [t, st] of [["In corso", "in"], ["Da giocare", "pre"], ["Finite", "post"]]) {
     const l = D.partite.filter((p) => p.stato === st).sort((a, b) => partitaPreferita(b) - partitaPreferita(a)); if (!l.length) continue;
     h += `<h2 class="sez${st === "in" ? " live" : ""}">${st === "in" ? '<span class="dot"></span>' : ""}${t}<span class="n">${l.length}</span></h2>` + l.map((p) => schedaPartita(D, p, top(p.id), true)).join("");
@@ -133,7 +134,7 @@ function disegnaPartite(D, conPoll, daCache) {
     h += `<details class="dt"><summary>Risultati di ieri (${D.ieri.length})</summary>` + D.ieri.map((p) => `<div class="card"><div class="riga"><div class="lg">${logo(p.trasf, 28)}<b>${esc(p.trasf)}</b></div><b style="font-size:18px">${p.ptTr} - ${p.ptCasa}</b><div class="lg"><b>${esc(p.casa)}</b>${logo(p.casa, 28)}</div></div></div>`).join("") + `</details>`;
   }
   h += `<button class="btn" id="agg"><i class="ti ti-refresh"></i> Aggiorna ora</button>`;
-  APP.innerHTML = h; bindGiorni(); $("#agg").onclick = () => route(true);
+  APP.innerHTML = h; bindGiorni(); $("#agg").onclick = () => route(true); notizieHome();
   if (conPoll) seguiPunteggi(D);
   if (D.erroreAgg) { clearTimeout(timer); timer = setTimeout(() => { if ((location.hash.replace(/^#/, "") || "/") === "/") route(true); }, 25000); }
 }

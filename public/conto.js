@@ -194,7 +194,7 @@ function meseDettaglio(mr, chiuse, incasso) {
   if (tipi.length) {
     h += `<h2>Per tipo di giocata</h2><div class="card">` + tipi.map(([k, [ok, n]]) => { const r = ok / n, c = r >= 0.7 ? GR : r >= 0.5 ? AM : RD; return `<div style="margin:6px 0"><div class="riga"><span>${NK[k] || k}</span><span class="s"><b style="color:${c}">${Math.round(r * 100)}%</b> · ${ok}/${n}</span></div><div style="height:6px;border-radius:3px;background:#222a3a;margin-top:3px"><div style="height:6px;border-radius:3px;width:${Math.round(r * 100)}%;background:${c}"></div></div></div>`; }).join("") + `<div class="cap" style="margin:6px 0 0">Percentuale delle singole giocate centrate nelle tue schedine chiuse.</div></div>`;
     const deboli = Object.entries(dirk).filter(([, [ok, n]]) => n >= 3 && ok / n < 0.5).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).slice(0, 2);
-    h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-target"></i> Punti deboli</div>` + (deboli.length ? deboli.map(([k, [ok, n]]) => { const [t, d] = k.split("|"); return `<div class="s" style="margin-top:4px">Su <b style="color:#fff">${(NK[t] || t).toLowerCase()} ${d}</b> ne prendi poche: <b style="color:${RD}">${ok} su ${n}</b>. Valuta di evitarle o di cercare linee più basse.</div>`; }).join("") : `<div class="s" style="margin-top:4px;color:${GR}">Nessun tipo di giocata sotto il 50% (con almeno 3 giocate).</div>`) + `</div>`;
+    h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-target"></i> Punti deboli</div>` + (deboli.length ? deboli.map(([k, [ok, n]]) => { const [t, d] = k.split("|"); return `<div class="s" style="margin-top:4px">Su <b style="color:var(--txt)">${(NK[t] || t).toLowerCase()} ${d}</b> ne prendi poche: <b style="color:${RD}">${ok} su ${n}</b>. Valuta di evitarle o di cercare linee più basse.</div>`; }).join("") : `<div class="s" style="margin-top:4px;color:${GR}">Nessun tipo di giocata sotto il 50% (con almeno 3 giocate).</div>`) + `</div>`;
   }
   return h;
 }
@@ -255,6 +255,27 @@ async function vistaConto() {
   };
   disegna();
 }
+
+// Schedina come immagine (PNG) da inviare al gruppo: si condivide dal telefono, altrimenti si scarica
+async function immagineSchedina(r) {
+  const righe = (r.legs && r.legs.length ? r.legs.map((l) => l.testo) : String(r.testo || "").split(" + ")).slice(0, 12), W = 1080, H = 330 + righe.length * 84 + 170;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#161a24"); g.addColorStop(1, "#0b0d12"); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.fillStyle = "#ff8a2a"; x.fillRect(0, 0, W, 14);
+  const t = (s, px, py, sz, col, w = 600, al = "left") => { x.font = `${w} ${sz}px -apple-system, "Segoe UI", Roboto, sans-serif`; x.fillStyle = col; x.textAlign = al; x.fillText(s, px, py); };
+  t("NBA Schedine", 60, 100, 34, "#ff8a2a", 700); t(r.nome || "Schedina", 60, 178, 58, "#ffffff", 700);
+  t(`${r.data || ""} · ${righe.length} giocat${righe.length === 1 ? "a" : "e"}`, 60, 230, 30, "#8b93a7", 500);
+  let y = 300;
+  for (const s of righe) { x.fillStyle = "#1d2230"; x.beginPath(); x.roundRect(60, y - 44, W - 120, 68, 16); x.fill(); x.fillStyle = "#ff8a2a"; x.fillRect(60, y - 44, 8, 68); let s2 = String(s); while (s2.length > 3 && (x.font = "500 32px sans-serif", x.measureText(s2).width > W - 220)) s2 = s2.slice(0, -2); t(s2 === s ? s : s2 + "…", 92, y + 1, 32, "#e8ecf5", 500); y += 84; }
+  y += 40;
+  const kv = [["Quota", String(r.quota ?? "-")], ["Puntata", (r.puntata ?? 0) + " €"], ["Prevista", r.prob != null ? Math.round(r.prob * 100) + "%" : "-"]];
+  kv.forEach(([k, v], i) => { const cx = 60 + i * 340; t(k, cx, y, 26, "#8b93a7", 500); t(v, cx, y + 56, 52, "#ffffff", 700); });
+  t("Stime del modello, non certezze.", W / 2, H - 30, 24, "#5d667a", 500, "center");
+  const blob = await new Promise((ok) => cv.toBlob(ok, "image/png")); if (!blob) return;
+  const f = new File([blob], "schedina.png", { type: "image/png" });
+  try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: r.nome || "Schedina" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "schedina.png"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
 async function vistaRegistro() {
   const back = topBar() + segStorico("r");
   APP.innerHTML = back + skel();
@@ -268,7 +289,7 @@ async function vistaRegistro() {
   else {
     h += `<div class="card riga" style="gap:14px;justify-content:flex-start"><div><div class="s">Risultato delle giocate chiuse</div><div style="font-family:'Barlow Condensed',Inter,sans-serif;font-size:36px;font-weight:700;color:${prof >= 0 ? GR : RD}">${chiuse.length ? eur(prof) : "–"}</div><div class="s">${vinte.length} centrate su ${chiuse.length}${puntato ? ` · rendimento ${(prof / puntato * 100).toFixed(0)}% su ${puntato.toFixed(2).replace(".", ",")} € puntati` : ""} · ${reg.filter((r) => r.esito == null).length} in attesa</div></div></div>`;
     h += statisticheRegistro(chiuse);
-    h += perGiornata(reg.map((r, i) => ({ r, i })), ({ r, i }) => `<div class="card" style="padding:10px 12px"><div class="riga" style="align-items:flex-start;gap:10px"><div style="min-width:0"><div style="font-weight:600">${esc(r.nome)}</div><div class="s" style="line-height:1.4">${esc(r.testo)}</div>${dettaglioLegs(r)}${r.nota ? `<div class="s" style="color:${AM}">${esc(r.nota)}</div>` : ""}<div class="s">${esc(r.data)} · quota ${r.quota} · ${r.puntata} € · prevista ${pct(r.prob)}</div>${confQuota(r)}${r.esito == null ? `<div style="margin-top:6px"><button class="chipbtn" data-es="${i}|1" style="padding:3px 10px;font-size:11px">Vinta</button> <button class="chipbtn" data-es="${i}|0" style="padding:3px 10px;font-size:11px">Persa</button></div>` : ""}</div><div style="text-align:right"><b style="color:${r.esito === 1 ? GR : r.esito === 0 ? RD : MU}">${r.esito === 1 ? eur(r.puntata * (r.quota - 1)) : r.esito === 0 ? eur(-r.puntata) : "in attesa"}</b><div><button class="chipbtn" data-del="${i}" style="padding:3px 10px;font-size:11px;margin-top:6px">Elimina</button></div></div></div><div class="riga" style="margin-top:8px;gap:8px;justify-content:flex-start"><span class="s">Quota di chiusura</span><input class="linea" inputmode="decimal" data-cl="${i}" value="${r.chiusura || ""}" placeholder="es. 1.75" style="margin:0;width:90px;padding:4px 8px">${r.chiusura > 1 ? (() => { const c = r.quota / r.chiusura - 1; return `<b style="color:${c >= 0 ? GR : RD}">CLV ${c >= 0 ? "+" : ""}${(c * 100).toFixed(1)}%</b>`; })() : ""}</div></div>`);
+    h += perGiornata(reg.map((r, i) => ({ r, i })), ({ r, i }) => `<div class="card" style="padding:10px 12px"><div class="riga" style="align-items:flex-start;gap:10px"><div style="min-width:0"><div style="font-weight:600">${esc(r.nome)}</div><div class="s" style="line-height:1.4">${esc(r.testo)}</div>${dettaglioLegs(r)}${r.nota ? `<div class="s" style="color:${AM}">${esc(r.nota)}</div>` : ""}<div class="s">${esc(r.data)} · quota ${r.quota} · ${r.puntata} € · prevista ${pct(r.prob)}</div>${confQuota(r)}${r.esito == null ? `<div style="margin-top:6px"><button class="chipbtn" data-es="${i}|1" style="padding:3px 10px;font-size:11px">Vinta</button> <button class="chipbtn" data-es="${i}|0" style="padding:3px 10px;font-size:11px">Persa</button></div>` : ""}</div><div style="text-align:right"><b style="color:${r.esito === 1 ? GR : r.esito === 0 ? RD : MU}">${r.esito === 1 ? eur(r.puntata * (r.quota - 1)) : r.esito === 0 ? eur(-r.puntata) : "in attesa"}</b><div><button class="chipbtn" data-img="${i}" style="padding:3px 10px;font-size:11px;margin-top:6px">Immagine</button> <button class="chipbtn" data-del="${i}" style="padding:3px 10px;font-size:11px;margin-top:6px">Elimina</button></div></div></div><div class="riga" style="margin-top:8px;gap:8px;justify-content:flex-start"><span class="s">Quota di chiusura</span><input class="linea" inputmode="decimal" data-cl="${i}" value="${r.chiusura || ""}" placeholder="es. 1.75" style="margin:0;width:90px;padding:4px 8px">${r.chiusura > 1 ? (() => { const c = r.quota / r.chiusura - 1; return `<b style="color:${c >= 0 ? GR : RD}">CLV ${c >= 0 ? "+" : ""}${(c * 100).toFixed(1)}%</b>`; })() : ""}</div></div>`);
   }
   if (reg.length) h += `<div class="grid2" style="margin-top:6px"><button class="btn" id="csv" style="margin:0">Scarica CSV</button><button class="btn" id="bak" style="margin:0">Copia backup</button></div>`;
   h += `<button class="btn" id="rip" style="margin:8px 0 0">Ripristina da backup incollato</button><div class="cap">Il registro vive solo su questo telefono: ogni tanto copia il backup e conservalo (ad esempio nelle note).</div>`;
@@ -283,6 +304,7 @@ async function vistaRegistro() {
   APP.querySelectorAll("[data-per]").forEach((b) => b.onclick = () => { ls.set("regPer", +b.dataset.per); vistaRegistro(); });
   APP.querySelectorAll("[data-es]").forEach((b) => b.onclick = () => { const [i, e] = b.dataset.es.split("|"), r = ls.get("registro", []); r[+i].esito = +e; ls.set("registro", r); vistaRegistro(); });
   APP.querySelectorAll("[data-cl]").forEach((el) => el.onchange = () => { const r = ls.get("registro", []), v = parseFloat(String(el.value).replace(",", ".")); r[+el.dataset.cl].chiusura = v > 1 ? v : null; ls.set("registro", r); vistaRegistro(); });
+  APP.querySelectorAll("[data-img]").forEach((b) => b.onclick = () => { const r = ls.get("registro", [])[+b.dataset.img]; if (r) immagineSchedina(r); });
   APP.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => { const r = ls.get("registro", []); r.splice(+b.dataset.del, 1); ls.set("registro", r); vistaRegistro(); });
 }
 

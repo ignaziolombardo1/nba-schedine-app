@@ -239,6 +239,12 @@ async function avvisiSchedine(env, g) {
           await accodaPush(env, { titolo: i.stato === "out" ? "⚠️ Giocatore fuori" : "⚠️ Giocatore in dubbio", testo: `${l.nome} è ${i.stato === "out" ? "fuori" : "in dubbio"}${i.etichetta ? " (" + i.etichetta + ")" : ""}: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("infortunio " + l.pid);
         }
       }
+      // 1b) promemoria: la prima partita della schedina inizia tra 20 e 40 minuti
+      if (!a.r && preIds.size) {
+        const tra = r.legs.map((l) => g.partite.find((p) => p.stato === "pre" && String(p.id) === String(l.g))).filter(Boolean).map((p) => (Date.parse(p.iso) - Date.now()) / 60000).filter((m) => m > 0);
+        const m = tra.length ? Math.min(...tra) : null;
+        if (m != null && m >= 18 && m <= 42) { a.r = 1; cambiato = true; await accodaPush(env, { titolo: "⏰ Si parte tra poco", testo: `«${nomeS}» (${n} giocat${n === 1 ? "a" : "e"}): la prima partita inizia tra ${Math.round(m)} minuti. Controlla infortuni e quintetti.`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("promemoria " + r.id); }
+      }
       // 2) schedina in corso: quasi presa / presa / persa
       if (!haLive || budget <= 0) continue;
       budget--;
@@ -252,6 +258,23 @@ async function avvisiSchedine(env, g) {
       if (m) { cambiato = true; await accodaPush(env, m, (sb) => sb.codice === cod); out.push("schedina " + r.id); }
     }
     if (cambiato) await salvaRigaForma(env, pid, S);
+  }
+  return out;
+}
+// riepilogo serale per ogni telefono: come sono andate le schedine di oggi e il saldo
+async function riepilogoSera(env, g, ymd) {
+  const el = (await rigaForma(env, "_push").catch(() => null)) || { subs: [] }, out = [], cache = {}, data = ymd.slice(0, 4) + "-" + ymd.slice(4, 6) + "-" + ymd.slice(6, 8);
+  for (const cod of [...new Set(el.subs.filter((x) => codiceOk(x.codice)).map((x) => x.codice))]) {
+    const pid = "_reg_" + cod, S = await rigaForma(env, pid); if (!S || !Array.isArray(S.registro)) continue;
+    S.sera ||= {}; if (S.sera[ymd]) continue;
+    const oggi = S.registro.filter((r) => String(r.data) === data); if (!oggi.length) continue;
+    for (const r of oggi) if (r.esito == null && r.legs && r.legs.length) { const es = await valutaGiocate(r.legs, cache); if (es.some((e) => e.esito === 0)) r.esito = 0; else if (es.every((e) => e.esito === 1)) r.esito = 1; }
+    const chiuse = oggi.filter((r) => r.esito === 0 || r.esito === 1); if (!chiuse.length) continue;
+    const ok = chiuse.filter((r) => r.esito === 1).length, saldo = chiuse.reduce((t, r) => t + (r.esito === 1 ? (r.puntata || 0) * ((r.quota || 1) - 1) : -(r.puntata || 0)), 0), fm = (x) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(2).replace(".", ",") + " €";
+    const aperte = oggi.length - chiuse.length;
+    await accodaPush(env, { titolo: `🌙 Oggi: ${ok} su ${chiuse.length} prese`, testo: `Saldo ${fm(saldo)}${aperte ? ` · ${aperte} ancora da chiudere` : ""}. ` + chiuse.slice(0, 3).map((r) => `${r.esito === 1 ? "✅" : "❌"} ${r.nome || "Schedina"}`).join(" · "), url: "/#/conto" }, (sb) => sb.codice === cod);
+    S.sera[ymd] = 1; for (const k of Object.keys(S.sera)) if (k < romaYMD(Date.now() - 7 * 86400e3)) delete S.sera[k];
+    await salvaRigaForma(env, pid, S); out.push("sera " + cod.slice(0, 4));
   }
   return out;
 }
@@ -335,6 +358,8 @@ async function cronAvvisi(env) {
   }
   // 1c) schedine personali: quasi presa / presa / persa
   try { fatto.push(...(await avvisiSchedine(env, g))); } catch {}
+  // 1d) riepilogo serale personale, a fine giornata
+  if (g.partite.every((p) => p.stato === "post")) { try { fatto.push(...(await riepilogoSera(env, g, ymd))); } catch {} }
   // 2) risultati: una volta, quando tutte le partite del giorno sono finite
   if (!oggi.e && g.partite.every((p) => p.stato === "post")) {
     const S = await apiStorico(env), ids = new Set(g.partite.map((p) => p.id));

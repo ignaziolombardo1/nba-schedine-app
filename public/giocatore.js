@@ -219,7 +219,7 @@ async function vistaStudio(id, force) {
       const ds = [...p.giocatori.filter((x) => x.sq === sq)].sort((a, b) => b.pts.media - a.pts.media).slice(0, 4), stima = i === 0 ? r.ptCasa : r.ptTr;
       return `<div${i ? ' style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"' : ""}><div class="riga"><div class="lg">${logo(sq, 26)}<b>${esc(T(D, sq).n)}</b></div><span class="s">stima ${stima.toFixed(0)} punti</span></div>` +
         `<div class="s" style="display:grid;grid-template-columns:1fr 44px 44px 44px;gap:2px 6px;margin-top:6px;text-align:right"><span></span><span>PT</span><span>RB</span><span>AS</span>` +
-        ds.map((x) => `<a href="#/giocatore/${esc(x.pid)}" style="text-align:left;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.nome)}${x.inf ? ` <span style="color:${AM}">⚠</span>` : ""}</a><b>${x.pts.media.toFixed(1).replace(".", ",")}</b><b>${x.reb.media.toFixed(1).replace(".", ",")}</b><b>${x.ast.media.toFixed(1).replace(".", ",")}</b>`).join("") + `</div></div>`;
+        ds.map((x) => `<a href="#/giocatore/${esc(x.pid)}" style="text-align:left;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.nome)}${x.inf ? ` <span style="color:${AM}">⚠</span>` : ""}</a><b>${x.pts.media.toFixed(1).replace(".", ",")}</b><b>${x.reb.media.toFixed(1).replace(".", ",")}</b><b>${x.ast.media.toFixed(1).replace(".", ",")}</b>`).join("") + `</div></div>`;
     }).join("") + `<div class="cap" style="margin:8px 0 0">Medie della stagione per partita. Tocca un giocatore per aprire la sua pagina.</div></div>`;
   }
   // 2) consigli della partita divisi per tipo

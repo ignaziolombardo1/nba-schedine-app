@@ -11,7 +11,7 @@ function aggiornaBadge() {
 }
 
 // ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
-const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["n", "news", "News"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["n", "news", "News"], ["w", "seguiti", "Seguiti"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
 const rigaEsplora = () => segEsplora(null);
 const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
 const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
@@ -63,7 +63,7 @@ async function vistaSquadra(ab) {
     h += `<h2>Ultime partite</h2><div class="card"><div class="riga"><div>${u.map((x) => `<span class="fm" style="background:${x.vinta ? GR : RD}">${x.vinta ? "V" : "S"}</span>`).join("")}</div><span class="s">${m(u, "pf").toFixed(1)} fatti · ${m(u, "pa").toFixed(1)} subiti · totale ${m(u.map((x) => ({ t: x.pf + x.pa })), "t").toFixed(1)}</span></div>` +
       u.map((x) => `<div class="riga rg"><div class="lg">${logo(x.avv, 22)}<div><div style="font-weight:500">${x.casa ? "in casa con" : "in trasferta da"} ${esc(nomeSq(S.squadre, x.avv))}</div><div class="s">${esc(x.data.slice(0, 10))}</div></div></div><b style="color:${x.vinta ? GR : RD}">${x.pf}-${x.pa}</b></div>`).join("") + `</div>`;
   }
-  if (S.giocatori.length) h += `<h2>Giocatori</h2><div class="card">` + S.giocatori.map((x, i) => `<a class="riga rg" href="#/giocatore/${esc(x.pid)}" style="color:inherit${i ? "" : ";border-top:0"}"><div class="lg">${foto(x.pid, 30)}<div style="min-width:0"><b>${esc(x.nome)}</b>${x.inf ? ` <span class="pill" style="color:${x.inf.stato === "out" ? RD : AM}">${x.inf.stato === "out" ? "Fuori" : "Dubbio"}</span>` : ""}<div class="s">${Math.round(x.min)} minuti</div></div></div><span class="s" style="text-align:right"><b style="color:#fff">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span></a>`).join("") + `<div class="cap" style="margin:8px 0 0">Medie della stagione per partita.</div></div>`;
+  if (S.giocatori.length) h += `<h2>Giocatori</h2><div class="card">` + S.giocatori.map((x, i) => `<a class="riga rg" href="#/giocatore/${esc(x.pid)}" style="color:inherit${i ? "" : ";border-top:0"}"><div class="lg">${foto(x.pid, 30)}<div style="min-width:0"><b>${esc(x.nome)}</b>${x.inf ? ` <span class="pill" style="color:${x.inf.stato === "out" ? RD : AM}">${x.inf.stato === "out" ? "Fuori" : "Dubbio"}</span>` : ""}<div class="s">${Math.round(x.min)} minuti</div></div></div><span class="s" style="text-align:right"><b style="color:var(--txt)">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span></a>`).join("") + `<div class="cap" style="margin:8px 0 0">Medie della stagione per partita.</div></div>`;
   h += `<h2>Ultime notizie</h2><div id="sqNews"><div class="skel"></div></div>`;
   APP.innerHTML = h;
   try { const R = await api("/api/news?s=" + encodeURIComponent(ab), 300000); const el = document.getElementById("sqNews"); if (el) el.innerHTML = R.news.length ? R.news.slice(0, 8).map(cardNews).join("") + `<a class="chipbtn" href="#/news/${esc(ab)}" style="display:inline-block;margin-top:6px">Tutte le notizie</a><div class="cap">Titoli tradotti in automatico; l'articolo si apre in inglese.</div>` : `<div class="vuoto">Nessuna notizia al momento.</div>`; } catch { const el = document.getElementById("sqNews"); if (el) el.innerHTML = `<div class="vuoto">Notizie non disponibili ora.</div>`; }
@@ -71,7 +71,7 @@ async function vistaSquadra(ab) {
 
 async function vistaCerca() {
   const top = topBar() + segEsplora("g");
-  const P = pref(), riga = (x) => `<a class="card riga" href="#/giocatore/${esc(x.pid)}" style="padding:8px 12px;color:inherit"><div class="lg">${foto(x.pid, 34)}<div style="min-width:0"><b>${esc(x.nome)}</b><div class="s">${logo(x.sq, 14)} ${esc(x.sq)}</div></div></div>${x.pts != null ? `<span class="s" style="text-align:right"><b style="color:#fff">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span>` : ""}</a>`;
+  const P = pref(), riga = (x) => `<a class="card riga" href="#/giocatore/${esc(x.pid)}" style="padding:8px 12px;color:inherit"><div class="lg">${foto(x.pid, 34)}<div style="min-width:0"><b>${esc(x.nome)}</b><div class="s">${logo(x.sq, 14)} ${esc(x.sq)}</div></div></div>${x.pts != null ? `<span class="s" style="text-align:right"><b style="color:var(--txt)">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span>` : ""}</a>`;
   APP.innerHTML = top + `<input class="linea" id="cercaQ" placeholder="Cerca un giocatore (es. Tatum)" autocomplete="off" style="margin-top:0"><div id="cercaR">${P.pl.length ? `<h2>I tuoi giocatori ★</h2>` + P.pl.map((x) => riga({ pid: x.pid, nome: x.nome, sq: x.sq })).join("") : `<div class="cap">Scrivi almeno due lettere. Aprendo un giocatore vedi medie e ultime partite, anche nei giorni senza partite. Con la ★ lo segui e ricevi gli avvisi.</div>`}</div>`;
   let t = null, n = 0;
   $("#cercaQ").oninput = (e) => { clearTimeout(t); const q = e.target.value.trim(), mio = ++n;
@@ -113,7 +113,7 @@ async function vistaStasera() {
   for (const p of pre) {
     const mie = D.picks.filter((x) => x.g === p.id).sort((a, b) => b.prob - a.prob)[0], out = (p.inf || []).filter((i) => i.stato === "out"), dub = (p.inf || []).filter((i) => i.stato !== "out");
     h += `<a class="card" href="#/partita/${p.id}" style="display:block;color:inherit"><div class="riga"><div class="lg">${logo(p.casa, 28)}<b>${esc(p.casa)}</b></div><div style="text-align:center"><b style="font-size:17px">${esc(String(p.ora).slice(-5))}</b><div class="s">stimati ${p.r ? p.r.ptCasa.toFixed(0) + "-" + p.r.ptTr.toFixed(0) : "–"}</div></div><div class="lg"><b>${esc(p.trasf)}</b>${logo(p.trasf, 28)}</div></div>` +
-      (mie ? `<div class="riga" style="margin-top:8px"><span class="s">Migliore: <b style="color:#fff">${esc(mie.testo)}</b></span><b style="color:${colProb(mie.prob)}">${pct(mie.prob)}</b></div>` : "") +
+      (mie ? `<div class="riga" style="margin-top:8px"><span class="s">Migliore: <b style="color:var(--txt)">${esc(mie.testo)}</b></span><b style="color:${colProb(mie.prob)}">${pct(mie.prob)}</b></div>` : "") +
       (out.length ? `<div class="s" style="margin-top:4px;color:${RD}">Fuori: ${out.map((i) => esc(i.nome) + " (" + esc(T(D, i.sq).b) + ")").join(", ")}</div>` : "") +
       (dub.length ? `<div class="s" style="margin-top:2px;color:${AM}">In dubbio: ${dub.map((i) => esc(i.nome)).join(", ")}</div>` : "") + `</a>`;
   }
@@ -151,3 +151,35 @@ async function schedaGiocatoreLibero(pid, back) {
   APP.innerHTML = h;
 }
 
+
+// Seguiti: i giocatori e le squadre con la ☆, con forma recente, stato infortunio e partita di oggi
+async function vistaSeguiti() {
+  const top = topBar() + segEsplora("w"), P = pref();
+  if (!P.pl.length && !P.sq.length) { APP.innerHTML = top + `<div class="vuoto">Non segui ancora nessuno. Tocca la ☆ accanto a una squadra o a un giocatore e li ritrovi qui, con forma e infortuni.</div><a class="chipbtn" href="#/cerca">Cerca un giocatore</a>`; return; }
+  APP.innerHTML = top + skel();
+  let D = null, inf = { giocatori: [] };
+  try { D = await dati(); } catch {}
+  try { inf = await api("/api/infortunati", 300000); } catch {}
+  const stato = {}; for (const x of inf.giocatori || []) if (x.pid) stato[String(x.pid)] = x;
+  const oggi = (sq) => { const p = D && D.partite.find((g) => g.casa === sq || g.trasf === sq); return p ? `${p.casa === sq ? "contro " + p.trasf : "a " + p.casa} · ${p.stato === "pre" ? String(p.ora).slice(-5) : p.stato === "in" ? "in corso" : "finita"}` : "oggi non gioca"; };
+  const schede = await Promise.all(P.pl.slice(0, 12).map((x) => api("/api/giocatore?pid=" + encodeURIComponent(x.pid), 600000).then((S) => ({ x, S })).catch(() => ({ x, S: null }))));
+  const med = (a) => (a && a.length ? a.reduce((p, q) => p + q, 0) / a.length : null);
+  let h = top;
+  if (P.sq.length) h += `<h2>Squadre</h2><div class="card">` + P.sq.map((ab, i) => `<a class="riga rg" href="#/squadra/${esc(ab)}" style="color:inherit${i ? "" : ";border-top:0"}"><div class="lg">${logo(ab, 26)}<b>${esc(nomeSq(D && D.squadre, ab))}</b></div><span class="s">${esc(oggi(ab))}</span></a>`).join("") + `</div>`;
+  if (schede.length) h += `<h2>Giocatori</h2>` + schede.map(({ x, S }) => {
+    const i = stato[String(x.pid)], c = i ? (i.stato === "out" ? RD : AM) : GR, et = i ? (i.stato === "out" ? "Fuori" : "Dubbio") : "Disponibile";
+    const u = S && S.ult && S.ult.pts, mu = med(u), m = S ? S.pts : null, fr = mu != null && m ? (mu > m + 1 ? "▲" : mu < m - 1 ? "▼" : "=") : "";
+    return `<a class="card riga" href="#/giocatore/${esc(x.pid)}" style="padding:10px 12px;color:inherit"><div class="lg">${foto(x.pid, 44)}<div style="min-width:0"><b>${esc(x.nome)}</b><div class="s">${esc(oggi(x.sq))}</div><div class="s">${mu != null ? `ultime ${u.length}: ${mu.toFixed(1)} pt ${fr}${m ? ` (stagione ${m.toFixed(1)})` : ""}` : "forma non disponibile"}</div></div></div><span class="s" style="color:${c};font-weight:600;white-space:nowrap">${et}</span></a>`;
+  }).join("");
+  APP.innerHTML = h;
+}
+// notizie delle squadre che segui, in Home (si caricano dopo, senza fermare la pagina)
+async function notizieHome() {
+  const el = document.getElementById("hnews"); if (!el) return;
+  const sq = pref().sq.slice(0, 3); if (!sq.length) return;
+  try {
+    const R = await Promise.all(sq.map((s) => api("/api/news?s=" + encodeURIComponent(s), 300000).then((r) => r.news.slice(0, 2).map((n) => ({ ...n, s }))).catch(() => [])));
+    const l = R.flat().sort((a, b) => String(b.data).localeCompare(String(a.data))).slice(0, 4); if (!l.length || !document.getElementById("hnews")) return;
+    el.innerHTML = `<h2>Notizie dei tuoi preferiti</h2><div class="card" style="padding:4px 12px">` + l.map((n, i) => `<a class="riga rg" href="${esc(n.url)}" target="_blank" rel="noopener" style="color:inherit${i ? "" : ";border-top:0"}"><div class="lg" style="align-items:flex-start">${logo(n.s, 20)}<div style="min-width:0"><div style="font-weight:500;line-height:1.3">${esc(n.titoloIt || n.titolo)}</div><div class="s">${esc(quandoFa(n.data))}</div></div></div></a>`).join("") + `</div><a class="chipbtn" href="#/news">Tutte le notizie</a>`;
+  } catch {}
+}

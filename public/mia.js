@@ -167,7 +167,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
   <div class="riga" style="margin-bottom:10px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span>${cliccabile ? `<span class="s">Studia <i class="ti ti-chevron-right"></i></span>` : ""}</div>
   <div class="mu">${team(p.casa, "casa", r.ptCasa, "c")}${centro}${team(p.trasf, "trasferta", r.ptTr, "t")}</div>${p.stato !== "pre" ? `<div data-qt>${tabQuarti(p, D)}</div>` : ""}
   <div class="bar"><div style="width:${(r.pw * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>
-  <div class="riga s" style="margin:4px 0 8px"><b style="color:#e8eaf0">1 · ${pct(r.pw)}</b><b style="color:#e8eaf0">${pct(1 - r.pw)} · 2</b></div>${chips}</${tag}>`;
+  <div class="riga s" style="margin:4px 0 8px"><b style="color:var(--txt)">1 · ${pct(r.pw)}</b><b style="color:var(--txt)">${pct(1 - r.pw)} · 2</b></div>${chips}</${tag}>`;
 }
 const raggruppa = (picks) => [["Molto probabili (80% o più)", picks.filter((x) => x.prob >= 0.8)], ["Probabili (70-80%)", picks.filter((x) => x.prob >= 0.7 && x.prob < 0.8)], ["Da valutare (sotto il 70%)", picks.filter((x) => x.prob < 0.7)]];
 
