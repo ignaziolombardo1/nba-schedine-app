@@ -642,6 +642,20 @@ export default {
       if (p === "/api/push-iscrivi" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); await iscriviPush(env, await req.json()); return J({ ok: true }); }
       if (p === "/api/push-prova" && req.method === "POST") { const r = await pushATutti(env, "✅ Notifiche attive", "NBA Schedine ti avviserà con il riepilogo ogni mattina e i risultati a fine giornata."); return J(r); }
       if (p === "/api/ultimo-avviso") return J(await ritiraAvviso(env, url.searchParams.get("id") || ""), 0);
+      if (p === "/api/condividi" && req.method === "POST") {
+        if (!dbOk(env)) return ERR("serve Supabase", 503);
+        const b = await req.json(), cut = (x, n) => String(x ?? "").slice(0, n), legs = (Array.isArray(b.legs) ? b.legs : []).slice(0, 12).map((l) => ({ testo: cut(l.testo, 120), partita: cut(l.partita, 60), g: cut(l.g, 20), k: cut(l.k, 8), pid: cut(l.pid, 20), sq: cut(l.sq, 4), dir: l.dir === "under" ? "under" : "over", soglia: +l.soglia || 0 }));
+        if (!legs.length) return ERR("schedina vuota", 400);
+        const id = Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join("");
+        await salvaRigaForma(env, "_sh_" + id, { nome: cut(b.nome, 60) || "Schedina", data: cut(b.data, 10), quota: +b.quota || 0, puntata: +b.puntata || 0, prob: +b.prob || 0, legs, creata: new Date().toISOString() });
+        return J({ id }, 0);
+      }
+      if (p === "/api/condiviso") {
+        const id = (url.searchParams.get("id") || "").replace(/[^a-z0-9]/g, "").slice(0, 12); if (!id || !dbOk(env)) return ERR("non trovata", 404);
+        const S = await rigaForma(env, "_sh_" + id); if (!S) return ERR("schedina non trovata", 404);
+        try { const ok = (l) => /^\d+$/.test(String(l.g)) && ["pts", "reb", "ast", "tot", "sq", "win"].includes(l.k), es = await valutaGiocate(S.legs.filter(ok), {}); let i = 0; S.legs = S.legs.map((l) => (ok(l) ? { ...l, esito: es[i].esito, cur: es[i++].cur } : l)); } catch {}
+        return J(S, 60);
+      }
       if (p === "/api/sync" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J(await sincronizza(env, await req.json()), 0); }
       if (p === "/api/push-pref" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ ok: await salvaPrefPush(env, await req.json()) }); }
       if (p === "/api/infortunati") {

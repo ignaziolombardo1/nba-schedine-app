@@ -1,13 +1,13 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "84";
+const VERSIONE = "85";
 // ---------- router
 let timer = null;
 function route(force) {
   clearTimeout(timer); barraMia();
   const hsh = location.hash.replace(/^#/, "") || "/";
-  const attivo = hsh.startsWith("/live") ? "live" : hsh.startsWith("/schedine") ? "schedine" : hsh.startsWith("/combo") || hsh.startsWith("/categoria") || hsh.startsWith("/mia") ? "consigli" : hsh.startsWith("/esiti") || hsh.startsWith("/storico") || hsh.startsWith("/conto") ? "storico" : hsh.startsWith("/diag") || hsh.startsWith("/registro") || hsh.startsWith("/impostazioni") ? "storico" : "partite";
+  const attivo = hsh.startsWith("/live") ? "live" : hsh.startsWith("/schedine") ? "schedine" : hsh.startsWith("/combo") || hsh.startsWith("/categoria") || hsh.startsWith("/mia") ? "consigli" : hsh.startsWith("/esiti") || hsh.startsWith("/storico") || hsh.startsWith("/conto") ? "storico" : hsh.startsWith("/diag") || hsh.startsWith("/statistiche") || hsh.startsWith("/registro") || hsh.startsWith("/impostazioni") ? "storico" : "partite";
   document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("on", a.dataset.r === attivo));
   const cat = /^\/categoria\/(\d+)/.exec(hsh), m = /^\/partita\/(\d+)/.exec(hsh), gp = /^\/giocatore\/(\d+)/.exec(hsh);
   if (hsh.startsWith("/impostazioni")) vistaImpostazioni();
@@ -18,6 +18,8 @@ function route(force) {
   else if (hsh.startsWith("/calendario")) vistaCalendario();
   else if (/^\/news\/[A-Za-z]{2,4}$/.test(hsh)) vistaNews(hsh.split("/")[2].toUpperCase());
   else if (hsh.startsWith("/news")) vistaNews(null);
+  else if (/^\/s\/[a-z0-9]+$/.test(hsh)) vistaCondivisa(hsh.split("/")[2]);
+  else if (hsh.startsWith("/statistiche")) vistaStatistiche();
   else if (hsh.startsWith("/seguiti")) vistaSeguiti();
   else if (hsh.startsWith("/stasera")) vistaStasera();
   else if (hsh.startsWith("/cerca")) vistaCerca();

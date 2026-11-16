@@ -26,7 +26,7 @@ function perGiornata(voci, disegna) {
     return `<details class="dt giorno"${i === 0 ? " open" : ""}><summary><span style="text-transform:capitalize">${esc(nomeGiorno(d))}</span><span style="color:${col};margin-left:auto">${ch.length ? `${ok} su ${ch.length} · ${Math.round(ok / ch.length * 100)}%` : `${l.length} in attesa`}</span></summary>${l.map(disegna).join("")}</details>`;
   }).join("");
 }
-const segStorico = (att) => `<div class="seg">${[["c", "conto", "Conto"], ["r", "registro", "Registro"], ["s", "storico", "Modello"], ["e", "esiti", "Esiti"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const segStorico = (att) => `<div class="seg">${[["c", "conto", "Conto"], ["r", "registro", "Registro"], ["t", "statistiche", "Statistiche"], ["s", "storico", "Modello"], ["e", "esiti", "Esiti"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
 const tabelliniCache = {};
 // elenco delle partite finite toccabili: ognuna apre il suo tabellino
 function riquadroTabellini(righe) {
