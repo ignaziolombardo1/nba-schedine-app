@@ -1,7 +1,7 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "85";
+const VERSIONE = "86";
 // ---------- router
 let timer = null;
 function route(force) {
@@ -36,7 +36,7 @@ function route(force) {
   else if (hsh.startsWith("/diag")) vistaDiag();
   else if (attivo === "storico") vistaStorico();
   else vistaPartite(force === true);
-  if (!m && !gp) window.scrollTo(0, 0);
+  if (force !== true) window.scrollTo(0, 0); // apertura di una pagina: si parte dall'alto; un aggiornamento (force) tiene la posizione
 }
 window.route = route;
 window.addEventListener("hashchange", () => route());

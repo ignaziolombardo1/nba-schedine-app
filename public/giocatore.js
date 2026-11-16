@@ -200,7 +200,7 @@ async function vistaCombo(force) {
       h += `</div>`;
     }
   }
-  APP.innerHTML = h; bindGiorni(); $("#ess").onchange = (e) => { ls.set("ess", e.target.checked); route(); };
+  APP.innerHTML = h; bindGiorni(); $("#ess").onchange = (e) => { ls.set("ess", e.target.checked); route(true); };
 }
 
 // ---------- STUDIO PARTITA
