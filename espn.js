@@ -293,3 +293,17 @@ export async function caricaCalendario(da, giorni = 7) {
   for (const p of r.partite) { p.giornoRoma = romaYMD(Date.parse(p.iso)); if (p.giornoRoma < da || p.giornoRoma > a) continue; (per[p.giornoRoma] ||= []).push(p); }
   return Object.keys(per).sort().map((ymd) => ({ ymd, partite: per[ymd].sort((x, y) => (x.iso < y.iso ? -1 : 1)).map((p) => ({ id: p.id, casa: p.casa, trasf: p.trasf, ora: p.ora, iso: p.iso, stato: p.stato, ptCasa: p.ptCasa, ptTr: p.ptTr })) }));
 }
+
+// ---- Lista infortunati di tutta la lega (per squadra), con id giocatore per la foto
+export async function caricaListaInfortuni() {
+  const d = await get(`${ESPN}/injuries`, {}, 600), out = [];
+  for (const t of d.injuries || []) {
+    const sq = t.abbreviation || (t.team || {}).abbreviation || null, nomeSq = String(t.displayName || (t.team || {}).displayName || "");
+    for (const i of t.injuries || []) {
+      const a = i.athlete || {}; if (!a.displayName) continue;
+      const stato = String(i.status || "").toLowerCase();
+      out.push({ pid: a.id ? String(a.id) : null, nome: a.displayName, sq, nomeSq, pos: (a.position || {}).abbreviation || "", stato: stato.includes("out") ? "out" : stato.includes("day") ? "giorno" : "dubbio", etichetta: i.status || "", dettaglio: i.shortComment || "", data: String(i.date || "").slice(0, 10) });
+    }
+  }
+  return out;
+}

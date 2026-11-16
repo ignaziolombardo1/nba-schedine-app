@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "69";
+const VERSIONE = "70";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -1238,8 +1238,8 @@ async function vistaDiag() {
 
 
 // ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
-const segEsplora = (att) => `<div class="seg">${[["c", "classifica", "Classifica"], ["k", "calendario", "Calendario"], ["g", "cerca", "Giocatori"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
-const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["classifica", "ti-trophy", "Classifica"], ["calendario", "ti-calendar", "Calendario"], ["cerca", "ti-search", "Giocatori"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
+const segEsplora = (att) => `<div class="seg">${[["c", "classifica", "Classifica"], ["k", "calendario", "Calendario"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["classifica", "ti-trophy", "Classifica"], ["calendario", "ti-calendar", "Calendario"], ["cerca", "ti-search", "Giocatori"], ["infortunati", "ti-first-aid-kit", "Infortunati"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1;padding:8px 4px;font-size:12px"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
 const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
 const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
 const etichettaGiorno = (ymd) => ymdData(ymd).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -1304,6 +1304,26 @@ async function vistaCerca() {
       try { const d = await api("/api/cerca?q=" + encodeURIComponent(q), 600000); if (mio !== n) return; R.innerHTML = d.giocatori.length ? d.giocatori.map(riga).join("") : `<div class="vuoto">Nessun giocatore trovato.</div>`; } catch (er) { if (mio === n) R.innerHTML = errBox(er); } }, 300); };
 }
 
+
+async function vistaInfortunati() {
+  const top = topBar() + segEsplora("i"); APP.innerHTML = top + skel();
+  let I; try { I = await api("/api/infortunati", 300000); } catch (e) { APP.innerHTML = top + errBox(e); return; }
+  const P = pref(), mie = new Set(P.sq), seguiti = new Set(P.pl.map((x) => String(x.pid))), filtro = ls.get("infF", "tutti"), per = {};
+  const lista = I.giocatori.filter((x) => filtro === "miei" ? mie.has(x.sq) || seguiti.has(x.pid) : filtro === "out" ? x.stato === "out" : true);
+  for (const x of lista) (per[x.sq] ||= []).push(x);
+  let h = top + `<div class="tabs">${[["tutti", "Tutti"], ["out", "Fuori"], ["miei", "I miei ★"]].map(([k, n]) => `<button class="chipbtn${filtro === k ? " on" : ""}" data-inf="${k}">${n}</button>`).join("")}</div>`;
+  h += `<div class="cap" style="margin-top:0">${lista.length} giocatori${filtro === "tutti" ? " segnalati" : ""}. Tocca un giocatore per le sue medie.</div>`;
+  if (!lista.length) h += `<div class="vuoto">${filtro === "miei" ? "Nessun infortunato tra le squadre e i giocatori che segui." : "Nessun infortunato segnalato."}</div>`;
+  for (const ab of Object.keys(per).sort()) {
+    h += `<a class="sub lg" href="#/squadra/${esc(ab)}" style="color:inherit;margin-top:14px">${logo(ab, 22)}<b>${esc((I.squadre[ab] || { n: ab }).n)}</b></a><div class="card" style="padding:4px 12px">` + per[ab].map((x, i) => {
+      const c = x.stato === "out" ? RD : AM, et = x.stato === "out" ? "Fuori" : x.stato === "giorno" ? "Giorno per giorno" : "Dubbio";
+      return `<a class="riga rg" ${x.pid ? `href="#/giocatore/${esc(x.pid)}"` : ""} style="color:inherit;align-items:flex-start${i ? "" : ";border-top:0"}"><div class="lg" style="align-items:flex-start">${foto(x.pid, 36)}<div style="min-width:0"><b>${esc(x.nome)}</b>${x.pos ? ` <span class="s">${esc(x.pos)}</span>` : ""}${x.dettaglio ? `<div class="s" style="line-height:1.35">${esc(x.dettaglio)}</div>` : ""}</div></div><span class="pill" style="color:${c};flex:0 0 auto">${et}</span></a>`;
+    }).join("") + `</div>`;
+  }
+  APP.innerHTML = h;
+  APP.querySelectorAll("[data-inf]").forEach((b) => b.onclick = () => { ls.set("infF", b.dataset.inf); vistaInfortunati(); });
+}
+
 // scheda di un giocatore che oggi non gioca: medie e ultime 10 partite
 async function schedaGiocatoreLibero(pid, back) {
   let S; try { S = await api("/api/giocatore?pid=" + encodeURIComponent(pid), 600000); } catch (e) { APP.innerHTML = back + errBox(e); return; }
@@ -1332,6 +1352,7 @@ function route(force) {
   else if (hsh.startsWith("/classifica")) vistaClassifica();
   else if (hsh.startsWith("/calendario")) vistaCalendario();
   else if (hsh.startsWith("/cerca")) vistaCerca();
+  else if (hsh.startsWith("/infortunati")) vistaInfortunati();
   else if (/^\/squadra\/[A-Za-z]{2,4}$/.test(hsh)) vistaSquadra(hsh.split("/")[2].toUpperCase());
   else if (gp) vistaGiocatore(gp[1]);
   else if (m) vistaStudio(m[1], force === true);

@@ -1,7 +1,7 @@
-import { info, nome } from "./squadre.js";
+import { info, nome, SQUADRE } from "./squadre.js";
 import { proiettaPartita, proiettaGiocatori, consigli, proposte, proposteQuota, valuta, phi, STD, frazioneGara, probLive, segnaliLive } from "./modello.js";
 import { aggiornaQuote, chiaveGara } from "./quote.js";
-import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario } from "./espn.js";
+import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni } from "./espn.js";
 
 const arr = (k, v) => (typeof v === "number" && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
 const J = (o, ttl = 0) => new Response(JSON.stringify(o, arr), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": ttl ? `public, max-age=${ttl}` : "no-store", "access-control-allow-origin": "*" } });
@@ -570,6 +570,12 @@ export default {
       if (p === "/api/ultimo-avviso") return J(await ritiraAvviso(env, url.searchParams.get("id") || ""), 0);
       if (p === "/api/sync" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J(await sincronizza(env, await req.json()), 0); }
       if (p === "/api/push-pref" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ ok: await salvaPrefPush(env, await req.json()) }); }
+      if (p === "/api/infortunati") {
+        const l = await caricaListaInfortuni(), perNome = Object.fromEntries(Object.entries(SQUADRE).map(([ab, v]) => [v[0].toLowerCase(), ab])), sq = {};
+        for (const x of l) { if (!x.sq) x.sq = perNome[x.nomeSq.toLowerCase()] || null; if (x.sq) sq[x.sq] = info(x.sq); }
+        const ord = { out: 0, dubbio: 1, giorno: 2 };
+        return J({ giocatori: l.filter((x) => x.sq).sort((a, b) => ord[a.stato] - ord[b.stato] || a.sq.localeCompare(b.sq) || a.nome.localeCompare(b.nome)), squadre: sq }, 600);
+      }
       if (p === "/api/classifica") { const c = await caricaClassifica(), sq = {}; for (const k of ["Est", "Ovest"]) for (const x of c[k]) sq[x.ab] = info(x.ab); return J({ ...c, squadre: sq }, 900); }
       if (p === "/api/calendario") { const da = dp && /^\d{8}$/.test(dp) ? dp : romaYMD(Date.now()), giorni = await caricaCalendario(da), sq = {}; for (const g of giorni) for (const x of g.partite) { sq[x.casa] = info(x.casa); sq[x.trasf] = info(x.trasf); } return J({ da, giorni, squadre: sq }, 600); }
       if (p === "/api/squadra") {
