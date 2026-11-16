@@ -4,7 +4,7 @@ const APP = $("#app");
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const OR = "#ff8a2a", GR = "#3ddc84", RD = "#ff5d5d", AM = "#ffb066", MU = "#8b93a5";
 const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "64";
+const VERSIONE = "65";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -1150,6 +1150,13 @@ async function vistaEsiti() {
   APP.querySelectorAll("[data-ec]").forEach((el) => el.onclick = () => { const i = +el.dataset.ec; ls.set("esCat", ls.get("esCat", null) === i ? null : i); vistaEsiti(); });
   const tt = $("#tutte"); if (tt) tt.onclick = (e) => { e.preventDefault(); ls.set("esCat", null); vistaEsiti(); };
 }
+function taraturaFasce(val) {
+  const DAL = "2026-11-14T12:00:00Z", fasce = [[0.7, 0.75, "70-75%"], [0.75, 0.8, "75-80%"], [0.8, 0.85, "80-85%"], [0.85, 1.01, "85% e oltre"]];
+  const riga = (l) => { if (!l.length) return ""; const n = l.length, ok = l.filter((r) => r.esito === 1).length, pr = l.reduce((a, r) => a + r.prob, 0) / n, re = ok / n, d = (re - pr) * 100;
+    return `<div class="riga" style="font-size:13px"><span>${ok}/${n}</span><span class="s">previsto ${pct(pr)} · centrato ${pct(re)}</span><b style="color:${Math.abs(d) < 5 ? GR : d < 0 ? RD : OR}">${d > 0 ? "+" : ""}${d.toFixed(0)}</b></div>`; };
+  return `<div class="grid2">${fasce.map(([a, b, n]) => { const l = val.filter((r) => r.prob >= a && r.prob < b), nuovi = l.filter((r) => r.creato && String(r.creato) >= DAL); if (!l.length) return "";
+    return `<div class="card pc"><div class="s">${n}</div>${riga(l)}${nuovi.length && nuovi.length < l.length ? `<div class="s" style="margin-top:4px">Solo modello attuale</div>${riga(nuovi)}` : ""}</div>`; }).join("")}</div>`;
+}
 async function vistaStorico() {
   APP.innerHTML = topBar() + skel();
   let S; try { S = await api("/api/storico", 0); } catch (e) { APP.innerHTML = topBar() + errBox(e); return; }
@@ -1163,7 +1170,7 @@ async function vistaStorico() {
       h += `<div class="card riga" style="gap:14px;justify-content:flex-start">${anello(p, p >= 60 ? GR : OR, 76)}<div><div class="s">Storico dei consigli salvati</div><div style="font-size:20px;font-weight:600">${ok} su ${val.length} azzeccati</div><div class="s">Il modello prevedeva in media il ${pct(at)} · ${att} in attesa</div></div></div>`;
       const sub = (l) => [l.filter((r) => r.esito === 1).length, l.length, l.reduce((a, r) => a + r.prob, 0) / l.length];
       h += `<h2>Per categoria</h2><div class="grid2">${SC.map(([t, , tipi]) => { const l = val.filter((r) => tipi.includes(r.tipo)); return l.length ? barraPerc(t, ...sub(l)) : ""; }).join("")}</div>`;
-      h += `<h2>Calibrazione</h2><div class="grid2">${[[0.7, 0.75, "70-75%"], [0.75, 0.8, "75-80%"], [0.8, 0.85, "80-85%"], [0.85, 1.01, "85% e oltre"]].map(([a, b, n]) => { const l = val.filter((r) => r.prob >= a && r.prob < b); return l.length ? barraPerc(n, ...sub(l)) : ""; }).join("")}</div><div class="cap">Se in una fascia la percentuale reale è molto più bassa di quella prevista, il modello è troppo ottimista lì.</div>`;
+      h += `<h2>Taratura per fascia</h2>` + taraturaFasce(val) + `<div class="cap">Per ogni fascia di probabilità: quanto prevedeva il modello e quanto è stato centrato davvero. Scarto negativo = il modello era troppo ottimista. Il modello attuale conta dal 14/11.</div>`;
       h += `<h2>Esiti per giornata</h2>` + perGiornata(val.map((r) => ({ r })), ({ r }) => rigaEsito(r));
     }
   }
