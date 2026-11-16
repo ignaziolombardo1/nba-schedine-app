@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "70";
+const VERSIONE = "71";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -1238,8 +1238,8 @@ async function vistaDiag() {
 
 
 // ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
-const segEsplora = (att) => `<div class="seg">${[["c", "classifica", "Classifica"], ["k", "calendario", "Calendario"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
-const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["classifica", "ti-trophy", "Classifica"], ["calendario", "ti-calendar", "Calendario"], ["cerca", "ti-search", "Giocatori"], ["infortunati", "ti-first-aid-kit", "Infortunati"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1;padding:8px 4px;font-size:12px"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
+const segEsplora = (att) => `<div class="seg">${[["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["classifica", "ti-trophy", "Classifica"], ["cerca", "ti-search", "Giocatori"], ["infortunati", "ti-first-aid-kit", "Infortunati"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1;padding:8px 4px;font-size:12px"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
 const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
 const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
 const etichettaGiorno = (ymd) => ymdData(ymd).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });

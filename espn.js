@@ -252,7 +252,7 @@ export async function testaATesta(a, b) {
 export async function caricaClassifica() {
   const cl = await get(`${ESPN_V2}/standings`, {}, 900), out = { Est: [], Ovest: [] };
   for (const conf of cl.children || []) {
-    const chiave = /east|est/i.test(String(conf.name || conf.abbreviation || conf.shortName || "")) ? "Est" : "Ovest";
+    const chiave = /east/i.test(String(conf.name || conf.abbreviation || conf.shortName || "")) ? "Est" : "Ovest";
     for (const en of ((conf.standings || {}).entries) || []) {
       const t = en.team || {}; if (!t.abbreviation) continue;
       const s = {}, d = {}; for (const x of en.stats || []) if (x && x.name) { s[x.name] = x.value; d[x.name] = x.displayValue; }
@@ -289,8 +289,12 @@ export async function caricaCalendarioSquadra(sigla) {
 
 // ---- Calendario: le partite dei prossimi giorni (una sola richiesta a ESPN)
 export async function caricaCalendario(da, giorni = 7) {
-  const a = aggiungiGiorni(da, giorni - 1), sb = await get(`${ESPN}/scoreboard`, { dates: `${aggiungiGiorni(da, -1)}-${a}`, limit: 300 }, 600), r = leggiScoreboard(sb), per = {};
-  for (const p of r.partite) { p.giornoRoma = romaYMD(Date.parse(p.iso)); if (p.giornoRoma < da || p.giornoRoma > a) continue; (per[p.giornoRoma] ||= []).push(p); }
+  // una richiesta per giorno (come la pagina Oggi): l'intervallo di date in una sola richiesta viene rifiutato da ESPN
+  const date = Array.from({ length: giorni + 1 }, (_, i) => aggiungiGiorni(da, i - 1)), per = {}, viste = new Set(); let errori = 0;
+  const R = await Promise.all(date.map((d) => get(`${ESPN}/scoreboard`, { dates: d }, 600).then(leggiScoreboard).catch(() => { errori++; return { partite: [] }; })));
+  if (errori === date.length) throw new Error("calendario non disponibile da ESPN");
+  const a = date[date.length - 1];
+  for (const r of R) for (const p of r.partite) { if (viste.has(p.id)) continue; viste.add(p.id); p.giornoRoma = romaYMD(Date.parse(p.iso)); if (p.giornoRoma < da || p.giornoRoma > a) continue; (per[p.giornoRoma] ||= []).push(p); }
   return Object.keys(per).sort().map((ymd) => ({ ymd, partite: per[ymd].sort((x, y) => (x.iso < y.iso ? -1 : 1)).map((p) => ({ id: p.id, casa: p.casa, trasf: p.trasf, ora: p.ora, iso: p.iso, stato: p.stato, ptCasa: p.ptCasa, ptTr: p.ptTr })) }));
 }
 
@@ -302,7 +306,8 @@ export async function caricaListaInfortuni() {
     for (const i of t.injuries || []) {
       const a = i.athlete || {}; if (!a.displayName) continue;
       const stato = String(i.status || "").toLowerCase();
-      out.push({ pid: a.id ? String(a.id) : null, nome: a.displayName, sq, nomeSq, pos: (a.position || {}).abbreviation || "", stato: stato.includes("out") ? "out" : stato.includes("day") ? "giorno" : "dubbio", etichetta: i.status || "", dettaglio: i.shortComment || "", data: String(i.date || "").slice(0, 10) });
+      const daLink = [...(a.links || []).map((l) => l.href || ""), (a.headshot || {}).href || ""].map((h) => /\/(?:id|players\/full)\/(\d+)/.exec(h)).find(Boolean);
+      out.push({ pid: a.id ? String(a.id) : daLink ? daLink[1] : null, nome: a.displayName, sq, nomeSq, pos: (a.position || {}).abbreviation || "", stato: stato.includes("out") ? "out" : stato.includes("day") ? "giorno" : "dubbio", etichetta: i.status || "", dettaglio: i.shortComment || "", data: String(i.date || "").slice(0, 10) });
     }
   }
   return out;

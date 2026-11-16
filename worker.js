@@ -571,7 +571,9 @@ export default {
       if (p === "/api/sync" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J(await sincronizza(env, await req.json()), 0); }
       if (p === "/api/push-pref" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ ok: await salvaPrefPush(env, await req.json()) }); }
       if (p === "/api/infortunati") {
-        const l = await caricaListaInfortuni(), perNome = Object.fromEntries(Object.entries(SQUADRE).map(([ab, v]) => [v[0].toLowerCase(), ab])), sq = {};
+        const [l, st] = await Promise.all([caricaListaInfortuni(), caricaStatistiche().catch(() => ({ players: [] }))]), idDaNome = new Map(st.players.map((q) => [q.nome.trim().toLowerCase(), q.pid]));
+        for (const x of l) if (!x.pid) x.pid = idDaNome.get(x.nome.trim().toLowerCase()) || null;
+        const perNome = Object.fromEntries(Object.entries(SQUADRE).map(([ab, v]) => [v[0].toLowerCase(), ab])), sq = {};
         for (const x of l) { if (!x.sq) x.sq = perNome[x.nomeSq.toLowerCase()] || null; if (x.sq) sq[x.sq] = info(x.sq); }
         const ord = { out: 0, dubbio: 1, giorno: 2 };
         return J({ giocatori: l.filter((x) => x.sq).sort((a, b) => ord[a.stato] - ord[b.stato] || a.sq.localeCompare(b.sq) || a.nome.localeCompare(b.nome)), squadre: sq }, 600);
