@@ -324,7 +324,8 @@ async function apiDiag(env) {
 
 async function apiGiorno(env, ctx, offset, data = null) {
   const errori = [];
-  const [g, stat, fm] = await Promise.all([caricaGiorno(offset, data), caricaStatistiche(), leggiForma(env)]);
+  const lab = (n, pr) => pr.catch((e) => { throw new Error(`${n}: ${e.message}`); }); // l'errore dice quale pezzo non risponde
+  const [g, stat, fm] = await Promise.all([lab("Calendario ESPN", caricaGiorno(offset, data)), lab("Statistiche ESPN", caricaStatistiche()), lab("Database", leggiForma(env))]);
   let infortuni = {};
   try { infortuni = await caricaInfortuni(); } catch (e) { errori.push("infortuni: " + e.message); }
   const b2b = [...new Set(g.ieri.flatMap((p) => [p.casa, p.trasf]))];

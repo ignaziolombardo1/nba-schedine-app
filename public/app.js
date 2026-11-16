@@ -4,7 +4,7 @@ const APP = $("#app");
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const OR = "#ff8a2a", GR = "#3ddc84", RD = "#ff5d5d", AM = "#ffb066", MU = "#8b93a5";
 const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "63";
+const VERSIONE = "64";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -39,7 +39,13 @@ async function api(path, ttl = 0) {
   return d;
 }
 const qs = () => "d=" + (typeof giorno === "number" ? etGiorno(giorno).ymd : giorno);
-const dati = async (force) => { if (force) delete cache["/api/giorno?" + qs()]; return applicaImp(await api("/api/giorno?" + qs(), 40000)); };
+// se i dati nuovi non arrivano si mostrano gli ultimi salvati (con l'avviso) e si riprova da soli
+const dati = async (force) => {
+  if (force) delete cache["/api/giorno?" + qs()];
+  try { return applicaImp(await api("/api/giorno?" + qs(), 40000)); }
+  catch (e) { const k = "/api/giorno?" + qs(), o = (() => { try { return JSON.parse(localStorage.getItem("D|" + k) || "null"); } catch { return null; } })(); if (o && o.d && Date.now() - o.t < 36 * 3600e3) return applicaImp({ ...o.d, erroreAgg: String(e.message || e), salvatoAlle: o.t }); throw e; }
+};
+const bannerErrore = (D) => D.erroreAgg ? `<div class="err" style="margin-bottom:10px"><b>Non riesco ad aggiornare.</b> Ti mostro i dati salvati alle ${new Date(D.salvatoAlle).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}.<div class="s" style="margin-top:4px">${esc(D.erroreAgg)}</div><button class="btn" style="margin-top:8px" onclick="route(true)">Riprova ora</button></div>` : "";
 
 // ---------- pezzi grafici
 const T = (D, ab) => (D.squadre && D.squadre[ab]) || { n: ab, b: ab, c: "#4a5060" };
@@ -341,14 +347,14 @@ async function sincPref() {
     await fetch("/api/push-pref", { method: "POST", body: JSON.stringify({ endpoint: sb.endpoint, pref: pref() }) }); } catch {}
 }
 let firmaHome = "", ultimoD = null;
-const firmaDati = (D) => D.partite.map((p) => p.id + p.stato + p.ptTr + p.ptCasa).join(",");
+const firmaDati = (D) => (D.erroreAgg ? "E" : "") + D.partite.map((p) => p.id + p.stato + p.ptTr + p.ptCasa).join(",");
 function disegnaPartite(D, conPoll, daCache) {
   firmaHome = firmaDati(D); ultimoD = D;
   const top = (id) => D.picks.find((x) => x.g === id);
   let h = topBar(D) + giorniChips();
   if (!D.partite.length) h += `<div class="vuoto">Nessuna partita trovata per questo giorno. Prova un altro giorno.</div>`;
   h += avvisiDati(D, daCache);
-  h += giocataDelGiorno(D);
+  h += bannerErrore(D) + giocataDelGiorno(D);
   { const m = confrontoMercato(D); if (m) h += `<details class="dt"><summary>Confronto con i bookmaker</summary>${m}</details>`; }
   if (D.partite.length) h += riquadroPreferiti(D);
   for (const [t, st] of [["In corso", "in"], ["Da giocare", "pre"], ["Finite", "post"]]) {
@@ -361,6 +367,7 @@ function disegnaPartite(D, conPoll, daCache) {
   h += `<button class="btn" id="agg"><i class="ti ti-refresh"></i> Aggiorna ora</button>`;
   APP.innerHTML = h; bindGiorni(); $("#agg").onclick = () => route(true);
   if (conPoll) seguiPunteggi(D);
+  if (D.erroreAgg) { clearTimeout(timer); timer = setTimeout(() => { if ((location.hash.replace(/^#/, "") || "/") === "/") route(true); }, 25000); }
 }
 
 
