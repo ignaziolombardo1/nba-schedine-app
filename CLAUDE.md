@@ -22,7 +22,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 - Schedine, registro e conto si sincronizzano sul server (`/api/sync`, riga `_reg_<codice>` in `nba_forma`); il codice è per telefono e si può inserire su un altro (Impostazioni). Le eliminazioni passano da `delIds` (tombstone).
 - Avvisi sulle proprie schedine nel cron (`avvisiSchedine`): quasi presa / presa / persa e giocatore fuori o in dubbio prima della partita; avvisi intervallo e finale punto a punto per i preferiti.
 - Esplora: `#/infortunati` (`/api/infortunati`), `#/classifica`, `#/calendario`, `#/squadra/XXX`, `#/cerca`, scheda giocatore anche senza partita (`/api/giocatore`). Parsing ESPN della classifica non verificato con dati reali: se i nomi dei campi differiscono, guardare `caricaClassifica` in `espn.js`.
-- Conto: riepilogo ultimi 7 giorni; Modello: taratura per fascia di probabilità.
+- Conto: riepilogo ultimi 7 giorni, «Le tue quote», «Il mio mese» (andamento, per tipo, punti deboli); Modello: taratura per fascia. Impostazioni: codice di sincronizzazione e backup file. Live: grafico dello scarto contro il previsto. `/#/diag` controlla anche le pagine Esplora.
 
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

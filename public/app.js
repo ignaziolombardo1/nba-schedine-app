@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "75";
+const VERSIONE = "76";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -1016,6 +1016,16 @@ function ultimeHtml(D, sig, ul) {
 }
 
 
+// andamento della partita: scarto quarto per quarto contro quello che prevedeva il modello, e ritmo dei punti
+function andamentoLive(D, p) {
+  const qc = p.qCasa || [], qt = p.qTr || []; if (!qt.length || !p.r) return "";
+  let a = 0, b = 0; const pts = [0], att = [0], n = Math.max(qt.length, 1);
+  qt.forEach((q, i) => { a += qc[i] ?? 0; b += q; pts.push(a - b); att.push(p.r.margine * Math.min(1, (i + 1) / 4)); });
+  const w = 300, h = 64, mx = Math.max(6, ...pts.map(Math.abs), ...att.map(Math.abs)), X = (i) => (i / Math.max(1, pts.length - 1) * (w - 12) + 6).toFixed(1), Y = (v) => (h / 2 - v / mx * (h / 2 - 6)).toFixed(1);
+  const t = p.ptCasa + p.ptTr, prev = p.r.totale * p.f, rit = t - prev, mar = (p.ptCasa - p.ptTr) - p.r.margine * p.f, cc = T(D, p.casa).b;
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;margin:6px 0 2px"><line x1="0" x2="${w}" y1="${Y(0)}" y2="${Y(0)}" stroke="${MU}" stroke-width="1" opacity=".5"/><polyline fill="none" stroke="${MU}" stroke-dasharray="4 3" stroke-width="1.5" opacity=".8" points="${att.map((v, i) => X(i) + "," + Y(v)).join(" ")}"/><polyline fill="none" stroke="${OR}" stroke-width="2.5" stroke-linejoin="round" points="${pts.map((v, i) => X(i) + "," + Y(v)).join(" ")}"/>${pts.map((v, i) => `<circle cx="${X(i)}" cy="${Y(v)}" r="${i === pts.length - 1 ? 4 : 2.2}" fill="${OR}"/>`).join("")}<text x="6" y="10" fill="${MU}" font-size="9">1 ${esc(p.casa)} avanti</text><text x="6" y="${h - 3}" fill="${MU}" font-size="9">2 ${esc(p.trasf)} avanti</text></svg>
+  <div class="s" style="margin-bottom:4px">Linea arancione: scarto reale. Tratteggiata: scarto previsto dal modello. <b style="color:${Math.abs(rit) < 4 ? MU : rit > 0 ? GR : AM}">Ritmo ${rit >= 0 ? "+" : ""}${rit.toFixed(0)} punti ${rit >= 0 ? "sopra" : "sotto"} il previsto</b>${Math.abs(mar) >= 3 ? ` · ${esc(cc)} ${mar > 0 ? "meglio" : "peggio"} del previsto di ${Math.abs(mar).toFixed(0)}` : ""}.</div>`;
+}
 // ---------- LIVE
 function schedaLive(D, p) {
   const t = T(D, p.casa), v = T(D, p.trasf), cc = t.c, ct = v.c.toLowerCase() === cc.toLowerCase() ? "#5a6378" : v.c;
@@ -1023,6 +1033,7 @@ function schedaLive(D, p) {
   return `<div class="card gm cmp inlive" data-lg="${p.id}" data-lv="${p.id}" style="--ca:${ct};--cb:${cc};cursor:pointer"><div class="riga" style="margin-bottom:4px"><span class="pill" style="color:${OR}"><span class="dot"></span>Live · ${esc(p.dettaglio)}</span><span class="s">Giocata al ${Math.round(p.f * 100)}% <i class="ti ti-chevron-${liveAperte.has(String(p.id)) ? "up" : "down"}"></i></span></div>
   <div class="cg">${lato(p.casa, "ca", 1, "c")}<div class="cm"><span class="big liveN">${p.ptCasa}</span><i>-</i><span class="big liveN">${p.ptTr}</span></div>${lato(p.trasf, "tr", 2, "t")}</div>
   <div class="qr">${(p.qTr || []).map((q, i) => `<span class="${p.periodo === i + 1 ? "cur" : ""}">Q${i + 1} ${(p.qCasa || [])[i] ?? 0}-${q}</span>`).join("")}</div>
+  ${andamentoLive(D, p)}
   <div class="bar" style="margin:6px 0 2px"><div style="width:${(p.pwLive * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>
   <div class="riga s" style="margin:0 0 6px"><span>1 ${esc(p.casa)} ${pct(p.pwLive)}</span><span>vittoria adesso</span><span>${esc(p.trasf)} ${pct(1 - p.pwLive)} 2</span></div>
   <span class="chip">Totale ora ${p.ptCasa + p.ptTr}</span><span class="chip">Finale stimato ${p.proiTot.toFixed(0)}</span>${p.mercato ? `<span class="chip" style="color:${AM}">Bookmaker ${p.mercato.linea}: over ${pct(p.mercato.pMk)} (${p.mercato.minuti} min fa)</span><span class="chip" style="color:${colProb(Math.max(p.mercato.pNostra, 1 - p.mercato.pNostra))}">Nostra stima: ${p.mercato.pNostra >= 0.5 ? "over" : "under"} ${pct(Math.max(p.mercato.pNostra, 1 - p.mercato.pNostra))}</span>` : ""}</div>`;
