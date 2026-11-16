@@ -247,3 +247,49 @@ export async function testaATesta(a, b) {
   const viste = new Set();
   return [...cur, ...prev].filter((x) => x.avv.toUpperCase() === b.toUpperCase() && !viste.has(x.data + x.pf + x.pa) && viste.add(x.data + x.pf + x.pa)).sort((x, y) => (x.data < y.data ? 1 : -1)).slice(0, 6);
 }
+
+// ---- Classifica per conference (Est / Ovest) dalla stessa pagina di ESPN usata per le medie delle squadre
+export async function caricaClassifica() {
+  const cl = await get(`${ESPN_V2}/standings`, {}, 900), out = { Est: [], Ovest: [] };
+  for (const conf of cl.children || []) {
+    const chiave = /east|est/i.test(String(conf.name || conf.abbreviation || conf.shortName || "")) ? "Est" : "Ovest";
+    for (const en of ((conf.standings || {}).entries) || []) {
+      const t = en.team || {}; if (!t.abbreviation) continue;
+      const s = {}, d = {}; for (const x of en.stats || []) if (x && x.name) { s[x.name] = x.value; d[x.name] = x.displayValue; }
+      let v = s.wins, p = s.losses; const ov = /^(\d+)-(\d+)/.exec(String(d.overall || d.record || ""));
+      if ((v == null || p == null) && ov) { v = +ov[1]; p = +ov[2]; }
+      if (v == null || p == null) continue;
+      const pf = s.avgPointsFor ?? (s.pointsFor && s.gamesPlayed ? s.pointsFor / s.gamesPlayed : null), pa = s.avgPointsAgainst ?? (s.pointsAgainst && s.gamesPlayed ? s.pointsAgainst / s.gamesPlayed : null);
+      out[chiave].push({ ab: t.abbreviation, v: +v, p: +p, pct: s.winPercent != null ? +s.winPercent : (+v + +p ? +v / (+v + +p) : 0), gb: d.gamesBehind ?? null, strk: d.streak ?? null, ultime10: d["Last Ten Games"] ?? d.lastTen ?? null, casa: d.Home ?? d.home ?? null, tra: d.Road ?? d.road ?? null, pf: pf != null ? +pf : null, pa: pa != null ? +pa : null });
+    }
+    out[chiave].sort((a, b) => b.pct - a.pct || b.v - a.v);
+  }
+  if (!out.Est.length && !out.Ovest.length) throw new Error("classifica non trovata");
+  return out;
+}
+
+// ---- Risultati e prossime partite di una squadra (calendario ESPN della squadra)
+export async function caricaCalendarioSquadra(sigla) {
+  const d = await get(`${ESPN}/teams/${sigla.toLowerCase()}/schedule`, {}, 900), fatte = [], prossime = [];
+  for (const ev of d.events || []) {
+    const comp = (ev.competitions || [{}])[0], stt = ((comp.status || ev.status || {}).type) || {};
+    let mie = null, loro = null;
+    for (const c of comp.competitors || []) {
+      let sc = c.score; if (sc && typeof sc === "object") sc = sc.value ?? sc.displayValue;
+      const ab = (c.team || {}).abbreviation || "", riga = { ab, pt: punti(sc), casa: c.homeAway === "home" };
+      if (ab.toUpperCase() === sigla.toUpperCase()) mie = riga; else loro = riga;
+    }
+    if (!mie || !loro) continue;
+    if (stt.completed) { if (mie.pt != null && loro.pt != null) fatte.push({ id: String(ev.id), data: String(ev.date || ""), avv: loro.ab, casa: mie.casa, pf: mie.pt, pa: loro.pt, vinta: mie.pt > loro.pt }); }
+    else prossime.push({ id: String(ev.id), data: String(ev.date || ""), ora: oraRoma(ev.date), avv: loro.ab, casa: mie.casa });
+  }
+  fatte.sort((a, b) => (a.data < b.data ? 1 : -1)); prossime.sort((a, b) => (a.data < b.data ? -1 : 1));
+  return { fatte: fatte.slice(0, 10), prossime: prossime.slice(0, 8) };
+}
+
+// ---- Calendario: le partite dei prossimi giorni (una sola richiesta a ESPN)
+export async function caricaCalendario(da, giorni = 7) {
+  const a = aggiungiGiorni(da, giorni - 1), sb = await get(`${ESPN}/scoreboard`, { dates: `${aggiungiGiorni(da, -1)}-${a}`, limit: 300 }, 600), r = leggiScoreboard(sb), per = {};
+  for (const p of r.partite) { p.giornoRoma = romaYMD(Date.parse(p.iso)); if (p.giornoRoma < da || p.giornoRoma > a) continue; (per[p.giornoRoma] ||= []).push(p); }
+  return Object.keys(per).sort().map((ymd) => ({ ymd, partite: per[ymd].sort((x, y) => (x.iso < y.iso ? -1 : 1)).map((p) => ({ id: p.id, casa: p.casa, trasf: p.trasf, ora: p.ora, iso: p.iso, stato: p.stato, ptCasa: p.ptCasa, ptTr: p.ptTr })) }));
+}

@@ -1,7 +1,7 @@
 import { info, nome } from "./squadre.js";
 import { proiettaPartita, proiettaGiocatori, consigli, proposte, proposteQuota, valuta, phi, STD, frazioneGara, probLive, segnaliLive } from "./modello.js";
 import { aggiornaQuote, chiaveGara } from "./quote.js";
-import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get } from "./espn.js";
+import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario } from "./espn.js";
 
 const arr = (k, v) => (typeof v === "number" && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
 const J = (o, ttl = 0) => new Response(JSON.stringify(o, arr), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": ttl ? `public, max-age=${ttl}` : "no-store", "access-control-allow-origin": "*" } });
@@ -551,6 +551,24 @@ export default {
       if (p === "/api/ultimo-avviso") return J(await ritiraAvviso(env, url.searchParams.get("id") || ""), 0);
       if (p === "/api/sync" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J(await sincronizza(env, await req.json()), 0); }
       if (p === "/api/push-pref" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ ok: await salvaPrefPush(env, await req.json()) }); }
+      if (p === "/api/classifica") { const c = await caricaClassifica(), sq = {}; for (const k of ["Est", "Ovest"]) for (const x of c[k]) sq[x.ab] = info(x.ab); return J({ ...c, squadre: sq }, 900); }
+      if (p === "/api/calendario") { const da = dp && /^\d{8}$/.test(dp) ? dp : romaYMD(Date.now()), giorni = await caricaCalendario(da), sq = {}; for (const g of giorni) for (const x of g.partite) { sq[x.casa] = info(x.casa); sq[x.trasf] = info(x.trasf); } return J({ da, giorni, squadre: sq }, 600); }
+      if (p === "/api/squadra") {
+        const s = (url.searchParams.get("s") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(s)) return ERR("sigla non valida", 400);
+        const [cal, cla, stat, inf] = await Promise.all([caricaCalendarioSquadra(s), caricaClassifica().catch(() => null), caricaStatistiche().catch(() => ({ players: [], teams: {} })), caricaInfortuni().catch(() => ({}))]);
+        let conf = null, riga = null, pos = null; if (cla) for (const k of ["Est", "Ovest"]) { const i = cla[k].findIndex((x) => x.ab === s); if (i >= 0) { conf = k; riga = cla[k][i]; pos = i + 1; } }
+        const gioc = stat.players.filter((x) => x.sq === s).sort((a, b) => b.pts - a.pts).slice(0, 9).map((x) => ({ ...x, inf: inf[x.nome.trim().toLowerCase()] ? { stato: inf[x.nome.trim().toLowerCase()].stato, e: inf[x.nome.trim().toLowerCase()].etichetta } : null }));
+        const sq = { [s]: info(s) }; for (const x of [...cal.fatte, ...cal.prossime]) sq[x.avv] = info(x.avv);
+        return J({ s, conf, pos, riga, ...cal, giocatori: gioc, squadre: sq }, 600);
+      }
+      if (p === "/api/giocatore") {
+        const pid = url.searchParams.get("pid") || ""; if (!/^\d+$/.test(pid)) return ERR("giocatore non valido", 400);
+        const [st, gl, inf] = await Promise.all([caricaStatistiche(), caricaGamelog(pid, 10).catch(() => null), caricaInfortuni().catch(() => ({}))]);
+        const x = st.players.find((q) => q.pid === pid); if (!x) return ERR("giocatore non trovato nelle statistiche", 404);
+        const i = inf[x.nome.trim().toLowerCase()];
+        return J({ pid, nome: x.nome, sq: x.sq, min: x.min, pts: x.pts, reb: x.reb, ast: x.ast, ult: gl ? { pts: [...gl.pts].reverse(), reb: [...gl.reb].reverse(), ast: [...gl.ast].reverse(), min: [...gl.min].reverse() } : null, inf: i ? { stato: i.stato, e: i.etichetta, d: i.dettaglio } : null, squadre: { [x.sq]: info(x.sq) } }, 600);
+      }
+      if (p === "/api/cerca") { const q = (url.searchParams.get("q") || "").trim().toLowerCase(); if (q.length < 2) return J({ giocatori: [] }, 60); const st = await caricaStatistiche(); return J({ giocatori: st.players.filter((x) => x.nome.toLowerCase().includes(q)).sort((a, b) => b.pts - a.pts).slice(0, 15).map((x) => ({ pid: x.pid, nome: x.nome, sq: x.sq, pts: x.pts, reb: x.reb, ast: x.ast })) }, 600); }
       if (p === "/api/h2h") { const x = (url.searchParams.get("a") || "").toUpperCase(), y = (url.searchParams.get("b") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(x) || !/^[A-Z]{2,4}$/.test(y)) return ERR("sigla non valida", 400); return J({ a: x, b: y, partite: await testaATesta(x, y) }, 1800); }
       if (p === "/api/ultime") { const s = (url.searchParams.get("s") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(s)) return ERR("sigla non valida", 400); return J({ s, ultime: await caricaUltime(s) }, 600); }
       return ERR("non trovato", 404);

@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "66";
+const VERSIONE = "67";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -373,7 +373,7 @@ const firmaDati = (D) => (D.erroreAgg ? "E" : "") + D.partite.map((p) => p.id + 
 function disegnaPartite(D, conPoll, daCache) {
   firmaHome = firmaDati(D); ultimoD = D;
   const top = (id) => D.picks.find((x) => x.g === id);
-  let h = topBar(D) + giorniChips();
+  let h = topBar(D) + rigaEsplora() + giorniChips();
   if (!D.partite.length) h += `<div class="vuoto">Nessuna partita trovata per questo giorno. Prova un altro giorno.</div>`;
   h += avvisiDati(D, daCache);
   h += bannerErrore(D) + giocataDelGiorno(D);
@@ -635,7 +635,7 @@ async function vistaGiocatore(pid) {
   let D; try { D = await dati(false); } catch (e) { APP.innerHTML = back + errBox(e); return; }
   let x = null, p = null;
   for (const g of D.partite) { const f = g.giocatori.find((q) => String(q.pid) === String(pid)); if (f) { x = f; p = g; break; } }
-  if (!x) { APP.innerHTML = back + `<div class="vuoto">Giocatore non trovato per il giorno selezionato.</div>`; return; }
+  if (!x) { await schedaGiocatoreLibero(pid, back); return; }
   const avv = x.sq === p.casa ? p.trasf : p.casa, dub = x.inf === "dubbio" ? `<span class="pill" style="color:${AM};margin-left:6px">Dubbio</span>` : "";
   let h = back + `<div class="card gm" style="--ca:${T(D, x.sq).c};--cb:transparent"><div class="lg">${foto(x.pid, 64)}<div style="min-width:0"><div class="nome" style="font-size:26px">${esc(x.nome)}${stella("pl", x.pid, x.nome, x.sq)}${dub}</div><div class="s">${logo(x.sq, 16)} ${esc(T(D, x.sq).n)} · contro ${esc(T(D, avv).b)} · ${esc(p.ora)}</div><div class="s">${Math.round(x.min)} minuti attesi${x.conForma ? " · con forma recente" : " · solo media stagione"}</div></div></div>${x.assenze ? `<div class="s" style="margin-top:8px;color:${AM}">Assenti in squadra: ${esc(x.assenze.join(", "))}. Una parte dei loro numeri passa a questo giocatore.</div>` : ""}</div>`;
   for (const [m, c] of Object.entries(MERC)) {
@@ -1215,6 +1215,87 @@ async function vistaDiag() {
   APP.innerHTML = h;
 }
 
+
+// ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
+const segEsplora = (att) => `<div class="seg">${[["c", "classifica", "Classifica"], ["k", "calendario", "Calendario"], ["g", "cerca", "Giocatori"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["classifica", "ti-trophy", "Classifica"], ["calendario", "ti-calendar", "Calendario"], ["cerca", "ti-search", "Giocatori"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
+const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
+const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
+const etichettaGiorno = (ymd) => ymdData(ymd).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const nomeSq = (S, ab) => (S && S[ab] ? S[ab].b : ab);
+
+async function vistaClassifica() {
+  const top = topBar() + segEsplora("c"); APP.innerHTML = top + skel();
+  let C; try { C = await api("/api/classifica", 600000); } catch (e) { APP.innerHTML = top + errBox(e); return; }
+  const k = ls.get("conf", "Est") === "Ovest" ? "Ovest" : "Est", L = C[k] || [], pm = new Set(pref().sq);
+  let h = top + `<div class="tabs">${["Est", "Ovest"].map((c) => `<button class="chipbtn${k === c ? " on" : ""}" data-conf="${c}">${c}</button>`).join("")}</div>`;
+  h += `<div class="card" style="padding:4px 12px"><div class="riga s" style="padding:6px 0"><span style="width:22px">#</span><span style="flex:1">Squadra</span><span style="width:54px;text-align:right">V-P</span><span style="width:40px;text-align:right">GB</span><span style="width:36px;text-align:right">Serie</span></div>` +
+    L.map((x, i) => `<a class="riga rg" href="#/squadra/${esc(x.ab)}" style="color:inherit${i === 5 || i === 9 ? ";border-top:1px dashed " + OR : ""}"><span style="width:22px;color:${i < 6 ? GR : i < 10 ? AM : MU};font-weight:600">${i + 1}</span><div class="lg" style="flex:1;min-width:0">${logo(x.ab, 24)}<b>${esc(nomeSq(C.squadre, x.ab))}</b>${pm.has(x.ab) ? " ★" : ""}</div><span style="width:54px;text-align:right">${x.v}-${x.p}</span><span class="s" style="width:40px;text-align:right">${esc(x.gb ?? "")}</span><span class="s" style="width:36px;text-align:right;color:${/^W/i.test(x.strk || "") ? GR : /^L/i.test(x.strk || "") ? RD : MU}">${esc(x.strk ?? "")}</span></a>`).join("") + `</div>`;
+  h += `<div class="cap">Le prime 6 vanno ai playoff, dalla 7ª alla 10ª ai play-in. GB = partite di distanza dalla prima. Tocca una squadra per vedere risultati, prossime partite e giocatori.</div>`;
+  APP.innerHTML = h;
+  APP.querySelectorAll("[data-conf]").forEach((b) => b.onclick = () => { ls.set("conf", b.dataset.conf); vistaClassifica(); });
+}
+
+let calDa = null;
+async function vistaCalendario() {
+  const top = topBar() + segEsplora("k"); APP.innerHTML = top + skel();
+  const q = calDa ? "?d=" + calDa : "";
+  let C; try { C = await api("/api/calendario" + q, 300000); } catch (e) { APP.innerHTML = top + errBox(e); return; }
+  const pm = new Set(pref().sq);
+  let h = top + `<div class="riga" style="margin-bottom:8px"><button class="chipbtn" id="calP"><i class="ti ti-chevron-left"></i> Prima</button><span class="s">7 giorni dal ${esc(etichettaGiorno(C.da))}</span><button class="chipbtn" id="calN">Dopo <i class="ti ti-chevron-right"></i></button></div>`;
+  if (!C.giorni.length) h += `<div class="vuoto">Nessuna partita in questi giorni.</div>`;
+  for (const g of C.giorni) {
+    h += `<h2 class="sez" style="text-transform:capitalize">${esc(etichettaGiorno(g.ymd))}</h2>` + g.partite.map((x) => {
+      const mid = x.stato === "pre" ? esc(String(x.ora).slice(-5)) : `${x.ptCasa ?? 0} - ${x.ptTr ?? 0}`;
+      return `<div class="card riga" style="padding:9px 12px"><a class="lg" href="#/squadra/${esc(x.casa)}" style="color:inherit">${logo(x.casa, 26)}<b>${esc(x.casa)}${pm.has(x.casa) ? " ★" : ""}</b></a><b style="font-size:17px;color:${x.stato === "in" ? RD : "inherit"}">${mid}${x.stato === "in" ? ' <span class="s" style="color:' + RD + '">live</span>' : ""}</b><a class="lg" href="#/squadra/${esc(x.trasf)}" style="color:inherit"><b>${esc(x.trasf)}${pm.has(x.trasf) ? " ★" : ""}</b>${logo(x.trasf, 26)}</a></div>`;
+    }).join("");
+  }
+  h += `<div class="cap">Orari in ora italiana. A sinistra la squadra di casa, a destra la trasferta.</div>`;
+  APP.innerHTML = h;
+  const oggi = () => { const d = new Date(); return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(d).replaceAll("-", ""); };
+  $("#calP").onclick = () => { calDa = ymdPiu(C.da, -7); vistaCalendario(); };
+  $("#calN").onclick = () => { calDa = ymdPiu(C.da, 7); vistaCalendario(); };
+}
+
+async function vistaSquadra(ab) {
+  const back = `<a class="back" href="javascript:history.back()"><i class="ti ti-chevron-left"></i>Indietro</a>`;
+  APP.innerHTML = back + skel();
+  let S; try { S = await api("/api/squadra?s=" + encodeURIComponent(ab), 300000); } catch (e) { APP.innerHTML = back + errBox(e); return; }
+  const I = S.squadre[S.s] || { n: S.s, b: S.s, c: "#4a5060" }, r = S.riga, m = (l, k) => (l.length ? l.reduce((a, x) => a + x[k], 0) / l.length : 0);
+  let h = back + `<div class="card gm" style="--ca:${I.c};--cb:transparent"><div class="lg">${logo(S.s, 64)}<div style="min-width:0"><div class="nome" style="font-size:26px">${esc(I.n)}${stella("sq", S.s)}</div><div class="s">${r ? `${S.pos}ª ${esc(S.conf)} · ${r.v}-${r.p}${r.strk ? " · serie " + esc(r.strk) : ""}` : "Classifica non disponibile"}</div>${r && (r.pf != null) ? `<div class="s">${r.pf.toFixed(1)} punti fatti · ${r.pa.toFixed(1)} subiti a partita</div>` : ""}${r && (r.casa || r.tra) ? `<div class="s">Casa ${esc(r.casa ?? "–")} · Trasferta ${esc(r.tra ?? "–")}${r.ultime10 ? " · ultime 10: " + esc(r.ultime10) : ""}</div>` : ""}</div></div></div>`;
+  if (S.prossime.length) h += `<h2>Prossime partite</h2>` + S.prossime.map((x) => `<div class="card riga" style="padding:8px 12px"><div class="lg">${logo(x.avv, 24)}<div><b>${x.casa ? "in casa con" : "in trasferta da"} ${esc(nomeSq(S.squadre, x.avv))}</b></div></div><span class="s">${esc(x.ora)}</span></div>`).join("");
+  if (S.fatte.length) {
+    const u = S.fatte.slice(0, 8);
+    h += `<h2>Ultime partite</h2><div class="card"><div class="riga"><div>${u.map((x) => `<span class="fm" style="background:${x.vinta ? GR : RD}">${x.vinta ? "V" : "S"}</span>`).join("")}</div><span class="s">${m(u, "pf").toFixed(1)} fatti · ${m(u, "pa").toFixed(1)} subiti · totale ${m(u.map((x) => ({ t: x.pf + x.pa })), "t").toFixed(1)}</span></div>` +
+      u.map((x) => `<div class="riga rg"><div class="lg">${logo(x.avv, 22)}<div><div style="font-weight:500">${x.casa ? "in casa con" : "in trasferta da"} ${esc(nomeSq(S.squadre, x.avv))}</div><div class="s">${esc(x.data.slice(0, 10))}</div></div></div><b style="color:${x.vinta ? GR : RD}">${x.pf}-${x.pa}</b></div>`).join("") + `</div>`;
+  }
+  if (S.giocatori.length) h += `<h2>Giocatori</h2><div class="card">` + S.giocatori.map((x, i) => `<a class="riga rg" href="#/giocatore/${esc(x.pid)}" style="color:inherit${i ? "" : ";border-top:0"}"><div class="lg">${foto(x.pid, 30)}<div style="min-width:0"><b>${esc(x.nome)}</b>${x.inf ? ` <span class="pill" style="color:${x.inf.stato === "out" ? RD : AM}">${x.inf.stato === "out" ? "Fuori" : "Dubbio"}</span>` : ""}<div class="s">${Math.round(x.min)} minuti</div></div></div><span class="s" style="text-align:right"><b style="color:#fff">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span></a>`).join("") + `<div class="cap" style="margin:8px 0 0">Medie della stagione per partita.</div></div>`;
+  APP.innerHTML = h;
+}
+
+async function vistaCerca() {
+  const top = topBar() + segEsplora("g");
+  const P = pref(), riga = (x) => `<a class="card riga" href="#/giocatore/${esc(x.pid)}" style="padding:8px 12px;color:inherit"><div class="lg">${foto(x.pid, 34)}<div style="min-width:0"><b>${esc(x.nome)}</b><div class="s">${logo(x.sq, 14)} ${esc(x.sq)}</div></div></div>${x.pts != null ? `<span class="s" style="text-align:right"><b style="color:#fff">${x.pts.toFixed(1)}</b> pt · ${x.reb.toFixed(1)} rb · ${x.ast.toFixed(1)} as</span>` : ""}</a>`;
+  APP.innerHTML = top + `<input class="linea" id="cercaQ" placeholder="Cerca un giocatore (es. Tatum)" autocomplete="off" style="margin-top:0"><div id="cercaR">${P.pl.length ? `<h2>I tuoi giocatori ★</h2>` + P.pl.map((x) => riga({ pid: x.pid, nome: x.nome, sq: x.sq })).join("") : `<div class="cap">Scrivi almeno due lettere. Aprendo un giocatore vedi medie e ultime partite, anche nei giorni senza partite. Con la ★ lo segui e ricevi gli avvisi.</div>`}</div>`;
+  let t = null, n = 0;
+  $("#cercaQ").oninput = (e) => { clearTimeout(t); const q = e.target.value.trim(), mio = ++n;
+    t = setTimeout(async () => { const R = $("#cercaR"); if (q.length < 2) { return; } R.innerHTML = `<div class="skel"></div>`;
+      try { const d = await api("/api/cerca?q=" + encodeURIComponent(q), 600000); if (mio !== n) return; R.innerHTML = d.giocatori.length ? d.giocatori.map(riga).join("") : `<div class="vuoto">Nessun giocatore trovato.</div>`; } catch (er) { if (mio === n) R.innerHTML = errBox(er); } }, 300); };
+}
+
+// scheda di un giocatore che oggi non gioca: medie e ultime 10 partite
+async function schedaGiocatoreLibero(pid, back) {
+  let S; try { S = await api("/api/giocatore?pid=" + encodeURIComponent(pid), 600000); } catch (e) { APP.innerHTML = back + errBox(e); return; }
+  const I = S.squadre[S.sq] || { n: S.sq, b: S.sq, c: "#4a5060" }, med = (a) => (a && a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+  let h = back + `<div class="card gm" style="--ca:${I.c};--cb:transparent"><div class="lg">${foto(S.pid, 64)}<div style="min-width:0"><div class="nome" style="font-size:26px">${esc(S.nome)}${stella("pl", S.pid, S.nome, S.sq)}${S.inf ? `<span class="pill" style="color:${S.inf.stato === "out" ? RD : AM};margin-left:6px">${S.inf.stato === "out" ? "Fuori" : "Dubbio"}</span>` : ""}</div><div class="s"><a href="#/squadra/${esc(S.sq)}" style="color:inherit">${logo(S.sq, 16)} ${esc(I.n)}</a></div><div class="s">${Math.round(S.min)} minuti a partita</div></div></div>${S.inf && S.inf.d ? `<div class="s" style="margin-top:8px">${esc(S.inf.d)}</div>` : ""}</div>`;
+  for (const [nome, k, media] of [["Punti", "pts", S.pts], ["Rimbalzi", "reb", S.reb], ["Assist", "ast", S.ast]]) {
+    const u = S.ult && S.ult[k], mu = med(u);
+    h += `<h2>${nome}</h2><div class="card"><div class="row3"><div class="tile on"><b>${media.toFixed(1)}</b><span>media stagione</span></div><div class="tile"><b>${mu != null ? mu.toFixed(1) : "–"}</b><span>ultime ${u ? u.length : 0}</span></div><div class="tile"><b>${u ? Math.max(...u) : "–"}</b><span>massimo</span></div></div>${u ? `<div style="margin-top:12px"><div class="s">ULTIME ${u.length} PARTITE (vecchia → recente)</div>${spark(u, null, MU)}</div>` : `<div class="s" style="margin-top:10px">Ultime partite non disponibili.</div>`}</div>`;
+  }
+  h += `<div class="cap">Oggi non gioca (o non è nelle partite del giorno scelto): qui vedi la sua forma. Le stime e le soglie compaiono nei giorni in cui scende in campo.</div>`;
+  APP.innerHTML = h;
+}
+
 // ---------- router
 let timer = null;
 function route(force) {
@@ -1227,6 +1308,10 @@ function route(force) {
   else if (hsh.startsWith("/calcolatore")) vistaCalcolatore();
   else if (hsh.startsWith("/registro")) vistaRegistro();
   else if (hsh.startsWith("/conto")) vistaConto();
+  else if (hsh.startsWith("/classifica")) vistaClassifica();
+  else if (hsh.startsWith("/calendario")) vistaCalendario();
+  else if (hsh.startsWith("/cerca")) vistaCerca();
+  else if (/^\/squadra\/[A-Za-z]{2,4}$/.test(hsh)) vistaSquadra(hsh.split("/")[2].toUpperCase());
   else if (gp) vistaGiocatore(gp[1]);
   else if (m) vistaStudio(m[1], force === true);
   else if (attivo === "live") vistaLive(true);
