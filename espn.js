@@ -40,7 +40,7 @@ export function leggiScoreboard(sb) {
     if (!cc || !ct) continue;
     const casa = cc.team.abbreviation, trasf = ct.team.abbreviation;
     const tipo = (ev.status || {}).type || {}, stato = tipo.state;
-    partite.push({ id: String(ev.id), casa, trasf, ora: oraRoma(ev.date), iso: ev.date, stato, dettaglio: tipo.shortDetail || "",
+    partite.push({ id: String(ev.id), casa, trasf, ora: oraRoma(ev.date), iso: ev.date, stato, dettaglio: dettIt(tipo.shortDetail || ""),
       ptCasa: stato !== "pre" ? punti(cc.score) : null, ptTr: stato !== "pre" ? punti(ct.score) : null,
       periodo: (ev.status || {}).period || 0, orologio: String((ev.status || {}).displayClock || ""),
       qCasa: stato !== "pre" ? quarti(cc) : [], qTr: stato !== "pre" ? quarti(ct) : [] });
@@ -101,6 +101,43 @@ export async function caricaStatistiche() {
   return { teams, players, diag: [`squadre: ${Object.keys(teams).length}`, `giocatori: ${players.length} (su ${ricevuti})`, ...(errGioc ? [`giocatori: ERRORE ${errGioc}`] : [])] };
 }
 
+
+// ---- Dicitura dello stato partita in italiano ("Q3 4:21", "Halftime", "End of 2nd Quarter", "Final/OT")
+export function dettIt(d) {
+  let x = String(d || "").trim(); if (!x) return x;
+  const ord = (n) => `${n}º`;
+  x = x.replace(/^Final\/(\d*)OT/i, (_, n) => `Finale dopo supplementari`).replace(/^Final$/i, "Finale").replace(/^Halftime$/i, "Intervallo").replace(/^End of (\d)(?:st|nd|rd|th) Quarter$/i, (_, n) => `Fine ${ord(n)} quarto`).replace(/^End of (\d)(?:st|nd|rd|th) OT$/i, "Fine supplementare").replace(/^(\d+:\d+|\d+\.\d+)\s*-\s*(\d)(?:st|nd|rd|th) Quarter$/i, (_, t, n) => `${t} · ${ord(n)} quarto`).replace(/^(\d+:\d+|\d+\.\d+)\s*-\s*(\d)?(?:st|nd|rd|th)? ?OT$/i, (_, t) => `${t} · supplementare`).replace(/^Postponed$/i, "Rinviata").replace(/^Canceled$/i, "Annullata").replace(/^Delayed$/i, "Ritardata").replace(/^Scheduled$/i, "Da giocare").replace(/^Q(\d) (\d+:\d+)$/i, (_, n, t) => `${t} · ${ord(n)} quarto`);
+  return x;
+}
+
+// ---- Infortuni in italiano (ESPN li dà in inglese): stato, parte del corpo, durata, partita
+const PARTI = { toe: "dito del piede", toes: "dita del piede", ankle: "caviglia", knee: "ginocchio", hip: "anca", back: "schiena", lower: "bassa", foot: "piede", hamstring: "bicipite femorale", calf: "polpaccio", groin: "inguine", shoulder: "spalla", wrist: "polso", hand: "mano", finger: "dito", thumb: "pollice", elbow: "gomito", quad: "quadricipite", quadriceps: "quadricipite", achilles: "tendine d'Achille", illness: "malattia", concussion: "commozione cerebrale", rest: "riposo", personal: "motivi personali", neck: "collo", rib: "costola", ribs: "costole", abdomen: "addome", abdominal: "addome", oblique: "obliquo", heel: "tallone", shin: "stinco", leg: "gamba", head: "testa", eye: "occhio", face: "viso", nose: "naso", jaw: "mascella", thigh: "coscia", glute: "gluteo", adductor: "adduttore", acl: "legamento crociato anteriore", mcl: "legamento collaterale", meniscus: "menisco", patella: "rotula", patellar: "rotuleo", tendon: "tendine", tendinitis: "tendinite", tendinopathy: "tendinopatia", soreness: "dolore", sprain: "distorsione", strain: "stiramento", contusion: "contusione", fracture: "frattura", fractured: "frattura", surgery: "operazione", torn: "lesione", tear: "lesione", illness_: "malattia", left: "sx", right: "dx", sore: "dolorante", injury: "infortunio", bruise: "contusione", knee_: "ginocchio", wisdom: "denti del giudizio", dislocated: "lussazione", load: "gestione del carico", management: "", ankle_: "", "g": "", league: "G League" };
+const NUMERI = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+const GIORNI = { monday: "lunedì", tuesday: "martedì", wednesday: "mercoledì", thursday: "giovedì", friday: "venerdì", saturday: "sabato", sunday: "domenica" };
+export function statoIt(st) {
+  const x = String(st || "").toLowerCase();
+  return /out for (the )?season|season/.test(x) ? "Fuori per la stagione" : x.includes("out") ? "Fuori" : x.includes("doubt") ? "Improbabile" : x.includes("question") ? "In dubbio" : x.includes("day") ? "Giorno per giorno" : x.includes("probable") ? "Probabile" : x.includes("available") ? "Disponibile" : String(st || "");
+}
+export function traduciNota(testo, status) {
+  const t = String(testo || ""), l = t.toLowerCase(), out = [];
+  if (!t) return statoIt(status);
+  const stagione = /(out for|miss) the (\d{4}-\d{2} )?season|season-ending|for the season/.test(l);
+  out.push(stagione ? "Fuori per tutta la stagione" : /ruled out|is out|\bout for|will miss|won't play|will not play|sidelined|not play/.test(l) ? "Non gioca" : /doubtful/.test(l) ? "Improbabile" : /questionable/.test(l) ? "In dubbio" : /probable/.test(l) ? "Probabile" : /day-to-day/.test(l) ? "Giorno per giorno" : /week-to-week/.test(l) ? "Settimana per settimana" : /available|cleared|will play|is expected to play/.test(l) ? "Disponibile" : statoIt(status));
+  const par = /\(([^)]+)\)/.exec(t);
+  const parti = (par ? par[1] : (/(torn|sprained|strained|fractured|broken|bruised)\s+([a-z ]+?)(?:\s+and|,|\.|$)/i.exec(t) || [])[2] || "").toLowerCase().split(/[\s/,-]+/).map((w) => PARTI[w]).filter(Boolean);
+  if (parti.length) { const lato = parti.filter((x) => x === "sx" || x === "dx"); out.push([...parti.filter((x) => x !== "sx" && x !== "dx"), ...lato].join(" ")); }
+  const extra = [];
+  if (/torn|tear/.test(l)) extra.push("lesione"); if (/surgery|operation/.test(l)) extra.push("operazione"); if (/fractur|broken/.test(l)) extra.push("frattura"); if (/sprain/.test(l)) extra.push("distorsione"); if (/strain/.test(l)) extra.push("stiramento"); if (/concussion/.test(l)) extra.push("commozione cerebrale"); if (/on-court activities/.test(l)) extra.push("ha ripreso gli allenamenti individuali"); if (/g league|assigned to/.test(l)) extra.push("in G League"); if (/personal reasons|personal/.test(l)) extra.push("motivi personali"); if (/rest|load management/.test(l)) extra.push("riposo");
+  for (const e of extra) if (!out.includes(e) && !parti.includes(e)) out.push(e);
+  const re = /re-?evaluated (?:in|after) (\w+) (weeks?|months?|days?)/.exec(l), mi = /(?:miss|out|sidelined)(?: for)?(?: about| at least| approximately)? (\w+)(?:-\w+)? (weeks?|months?|days?)/.exec(l);
+  const un = (u) => (/week/.test(u) ? "settimane" : /month/.test(u) ? "mesi" : "giorni");
+  if (re) out.push(`da rivalutare tra ${NUMERI[re[1]] || re[1]} ${un(re[2])}`); else if (/re-?evaluated/.test(l)) out.push("da rivalutare");
+  if (mi && !re && !stagione) out.push(`stop di circa ${NUMERI[mi[1]] || mi[1]} ${un(mi[2])}`);
+  const g = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:'s)?/.exec(l), avv = /(?:against|vs\.?|versus|at) (?:the )?([A-Z][A-Za-z.]+(?: [A-Z][A-Za-z.]+)?)/.exec(t);
+  if (/game|matchup|contest/.test(l) && (g || avv)) out.push(`per la partita${g ? " di " + GIORNI[g[1]] : ""}${avv ? " contro " + avv[1].replace(/\.$/, "") : ""}`);
+  return out.join(" · ");
+}
+
 export async function caricaInfortuni() {
   const d = await get(`${ESPN}/injuries`, {}, 600), out = {};
   for (const t of d.injuries || []) for (const i of t.injuries || []) {
@@ -108,7 +145,7 @@ export async function caricaInfortuni() {
     if (!n) continue;
     // probabilità che giochi: doubtful 25%, questionable 50%, day-to-day 60%, probable 85%
     const grado = stato.includes("out") ? 0 : stato.includes("doubt") ? 0.25 : stato.includes("question") ? 0.5 : stato.includes("day") ? 0.6 : stato.includes("probable") ? 0.85 : 0.5;
-    out[n.trim().toLowerCase()] = { stato: stato.includes("out") ? "out" : "dubbio", grado, etichetta: i.status || "", dettaglio: i.shortComment || i.status || "" };
+    out[n.trim().toLowerCase()] = { stato: stato.includes("out") ? "out" : "dubbio", grado, etichetta: statoIt(i.status), dettaglio: traduciNota(i.shortComment, i.status) };
   }
   return out;
 }
@@ -307,7 +344,7 @@ export async function caricaListaInfortuni() {
       const a = i.athlete || {}; if (!a.displayName) continue;
       const stato = String(i.status || "").toLowerCase();
       const daLink = [...(a.links || []).map((l) => l.href || ""), (a.headshot || {}).href || ""].map((h) => /\/(?:id|players\/full)\/(\d+)/.exec(h)).find(Boolean);
-      out.push({ pid: a.id ? String(a.id) : daLink ? daLink[1] : null, nome: a.displayName, sq, nomeSq, pos: (a.position || {}).abbreviation || "", stato: stato.includes("out") ? "out" : stato.includes("day") ? "giorno" : "dubbio", etichetta: i.status || "", dettaglio: i.shortComment || "", data: String(i.date || "").slice(0, 10) });
+      out.push({ pid: a.id ? String(a.id) : daLink ? daLink[1] : null, nome: a.displayName, sq, nomeSq, pos: (a.position || {}).abbreviation || "", stato: stato.includes("out") ? "out" : stato.includes("day") ? "giorno" : "dubbio", etichetta: statoIt(i.status), dettaglio: traduciNota(i.shortComment, i.status), data: String(i.date || "").slice(0, 10) });
     }
   }
   return out;

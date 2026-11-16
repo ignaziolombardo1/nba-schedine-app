@@ -312,7 +312,7 @@ async function cronAvvisi(env) {
       if (p.stato === "in") {
         const diff = Math.abs((p.ptCasa ?? 0) - (p.ptTr ?? 0)), minuti = /:/.test(p.orologio || "") ? parseInt(p.orologio) : 0, punteggio = `${p.casa} ${p.ptCasa} - ${p.ptTr} ${p.trasf}`;
         oggi.h ||= {}; oggi.c ||= {};
-        if (/half/i.test(p.dettaglio || "") && !oggi.h[p.id]) { await accodaPush(env, { titolo: `⏸ Intervallo ${p.casa} - ${p.trasf}`, testo: punteggio, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.h[p.id] = 1; fatto.push("intervallo " + p.id); }
+        if (/half|interval/i.test(p.dettaglio || "") && !oggi.h[p.id]) { await accodaPush(env, { titolo: `⏸ Intervallo ${p.casa} - ${p.trasf}`, testo: punteggio, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.h[p.id] = 1; fatto.push("intervallo " + p.id); }
         if ((p.periodo || 0) >= 4 && minuti < 5 && diff <= 6 && !oggi.c[p.id]) { await accodaPush(env, { titolo: `🔥 Finale punto a punto`, testo: `${punteggio} · ${p.dettaglio || ""}`, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.c[p.id] = 1; fatto.push("finale " + p.id); }
       }
       if (p.stato === "post" && !oggi.f[p.id]) {
