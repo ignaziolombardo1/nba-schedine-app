@@ -8,8 +8,8 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     const ids = new Set((v || []).map((r) => String(r.id))), dl = ls.get("delIds", []); for (const r of ls.get(k, [])) if (r && r.id != null && !ids.has(String(r.id))) dl.push(String(r.id));
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
-  localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "76";
+  localStorage.setItem(k, JSON.stringify(v)); if (k === "registro") setTimeout(() => aggiornaBadge(), 0); } catch {} } };
+const VERSIONE = "77";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -359,7 +359,7 @@ async function sincReg() {
     const d = await r.json();
     if ((localStorage.getItem("registro") || "[]") !== inv.registro || (localStorage.getItem("mov") || "[]") !== inv.mov) return; // nel frattempo è cambiato qualcosa: si riprova al prossimo giro
     const nuovo = JSON.stringify(d.registro), cambiato = nuovo !== inv.registro || JSON.stringify(d.mov) !== inv.mov;
-    localStorage.setItem("registro", nuovo); localStorage.setItem("mov", JSON.stringify(d.mov)); localStorage.setItem("delIds", JSON.stringify(d.del || []));
+    localStorage.setItem("registro", nuovo); localStorage.setItem("mov", JSON.stringify(d.mov)); localStorage.setItem("delIds", JSON.stringify(d.del || [])); aggiornaBadge();
     if (cambiato && /^#\/(registro|conto|live)/.test(location.hash)) route(true);
   } catch {} finally { sincInCorso = false; }
 }
@@ -429,6 +429,8 @@ function vistaImpostazioni() {
   h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-bell"></i> Notifiche sul telefono</div>` + (pushOk
     ? `<div class="cap" style="margin:4px 0 8px">Ogni mattina la Giocata del giorno e le schedine quota 2, 5, 10 e 20; a fine giornata i risultati. Per le squadre e i giocatori con la ★ e per le partite con la 🔔 ricevi l'inizio e la fine della partita, con i numeri dei tuoi giocatori.</div><div class="grid2"><button class="btn" id="pushOn" style="margin:0">Attiva</button><button class="btn" id="pushProva" style="margin:0">Invia prova</button></div><div class="cap" id="pushMsg" style="margin-bottom:0">${Notification.permission === "granted" ? "Permesso già concesso: tocca «Attiva» per collegare questo telefono." : Notification.permission === "denied" ? "Le notifiche sono bloccate nelle impostazioni del telefono per questa app." : ""}</div>`
     : `<div class="cap" style="margin:4px 0 0">Per le notifiche su iPhone serve iOS 16.4 o più recente e l'app aperta dalla schermata Home: in Safari tocca Condividi → «Aggiungi alla schermata Home», poi apri l'app da lì e torna qui.</div>`) + `</div>`;
+  { const a = ls.get("aspetto", { tema: "scuro", testo: "normale" }), sc = (k, v, n) => `<button class="chipbtn${a[k] === v ? " on" : ""}" data-asp="${k}|${v}">${n}</button>`;
+    h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-palette"></i> Aspetto</div><div class="cap" style="margin:4px 0 6px">Tema</div><div class="tabs" style="margin:0">${sc("tema", "scuro", "Scuro")}${sc("tema", "chiaro", "Chiaro")}${sc("tema", "auto", "Come il telefono")}</div><div class="cap" style="margin:10px 0 6px">Dimensione del testo</div><div class="tabs" style="margin:0">${sc("testo", "normale", "Normale")}${sc("testo", "grande", "Grande")}${sc("testo", "molto", "Molto grande")}</div><div class="cap" style="margin:8px 0 0">Il tema chiaro è una prova: se qualche colore non si legge bene, torna su Scuro.</div></div>`; }
   h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-refresh"></i> Sincronizzazione</div><div class="cap" style="margin:4px 0 8px">Schedine, registro e conto sono salvati anche sul server: non li perdi se cambi telefono e ricevi gli avvisi «quasi presa», «presa» e «persa». Per usare lo stesso conto su un altro telefono, inserisci lì questo codice.</div><div class="riga"><b style="letter-spacing:2px;font-size:18px">${esc(codiceSync())}</b><button class="btn" id="cpCod" style="margin:0;width:auto;padding:6px 14px">Copia</button></div><input class="linea" id="altroCod" placeholder="Codice di un altro telefono" autocapitalize="none" style="margin-top:10px"><button class="btn" id="colCod" style="margin-top:8px">Collega questo telefono a quel codice</button><div class="cap" id="codMsg" style="margin-bottom:0"></div></div>`;
   h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-download"></i> Backup</div><div class="cap" style="margin:4px 0 8px">Salva in un file registro, conto, preferiti e impostazioni. Per ripristinarli scegli il file: le schedine già presenti restano, quelle mancanti vengono aggiunte.</div><div class="grid2" style="gap:8px"><button class="btn" id="bkEsp" style="margin:0"><i class="ti ti-file-export"></i> Salva file</button><button class="btn" id="bkImp" style="margin:0"><i class="ti ti-file-import"></i> Ripristina</button></div><input type="file" id="bkFile" accept="application/json,.json" hidden><div class="cap" id="bkMsg" style="margin-bottom:0"></div></div>`;
   h += `<div class="card"><div class="sub" style="margin-top:0">Puntata predefinita nel registro (€)</div><input class="linea" inputmode="decimal" id="pun" value="${i.puntata}" style="margin-top:0"></div>`;
@@ -462,6 +464,7 @@ function vistaImpostazioni() {
       const dl = ls.get("delIds", []).filter((id) => ![...d.registro, ...d.mov].some((r) => String(r.id) === id)); localStorage.setItem("delIds", JSON.stringify(dl));
       ls.set("registro", r1); ls.set("mov", m1); if (d.pref && !ls.get("pref", null)) ls.set("pref", d.pref); if (d.imp && !ls.get("imp", null)) ls.set("imp", d.imp);
       m.textContent = `Ripristinato: ${r1.length - r0.length} schedine e ${m1.length - m0.length} movimenti aggiunti.`; } catch (er) { m.textContent = "Ripristino non riuscito: " + (er.message || er); } e.target.value = ""; };
+  APP.querySelectorAll("[data-asp]").forEach((b) => b.onclick = () => { const [k, v] = b.dataset.asp.split("|"), a = ls.get("aspetto", { tema: "scuro", testo: "normale" }); a[k] = v; ls.set("aspetto", a); applicaAspetto(); vistaImpostazioni(); });
   $("#cpCod").onclick = async () => { try { await navigator.clipboard.writeText(codiceSync()); $("#codMsg").textContent = "Codice copiato."; } catch { $("#codMsg").textContent = "Copia non riuscita: scrivilo a mano."; } };
   $("#colCod").onclick = async () => { const c = $("#altroCod").value.trim().toLowerCase(); if (!/^[a-z0-9]{8,16}$/.test(c)) { $("#codMsg").textContent = "Codice non valido."; return; } if (c === codiceSync()) { $("#codMsg").textContent = "È già il codice di questo telefono."; return; } if (!confirm("Il registro e il conto di questo telefono si uniranno a quelli del codice inserito. Continuare?")) return; ls.set("codice", c); await sincReg(); sincPref(); vistaImpostazioni(); };
   $("#bk").oninput = (e) => { const v = parseFloat(String(e.target.value).replace(",", ".")); if (v > 0) salva({ bankroll: v }); };
@@ -1290,9 +1293,20 @@ async function vistaDiag() {
 }
 
 
+
+// ---------- aspetto (tema, dimensione testo) e numero di giocate aperte sull'icona dell'app
+function applicaAspetto() {
+  const a = ls.get("aspetto", { tema: "scuro", testo: "normale" }), chiaro = a.tema === "chiaro" || (a.tema === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
+  document.documentElement.classList.toggle("chiaro", !!chiaro);
+  const m = document.querySelector("main"); if (m) m.style.zoom = a.testo === "grande" ? "1.12" : a.testo === "molto" ? "1.25" : "";
+}
+function aggiornaBadge() {
+  try { const n = ls.get("registro", []).filter((r) => r.esito == null).length; if (navigator.setAppBadge) { if (n > 0) navigator.setAppBadge(n); else navigator.clearAppBadge && navigator.clearAppBadge(); } } catch {}
+}
+
 // ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
-const segEsplora = (att) => `<div class="seg">${[["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
-const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["classifica", "ti-trophy", "Classifica"], ["cerca", "ti-search", "Giocatori"], ["infortunati", "ti-first-aid-kit", "Infortunati"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1;padding:8px 4px;font-size:12px"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
+const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["i", "infortunati", "Infortunati"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const rigaEsplora = () => `<div class="tabs" style="margin:0 0 10px">${[["stasera", "ti-moon", "Stasera"], ["classifica", "ti-trophy", "Classifica"], ["cerca", "ti-search", "Giocatori"], ["infortunati", "ti-first-aid-kit", "Infortunati"]].map(([h, i, n]) => `<a class="chipbtn" href="#/${h}" style="text-align:center;flex:1;padding:8px 4px;font-size:12px"><i class="ti ${i}"></i> ${n}</a>`).join("")}</div>`;
 const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
 const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
 const etichettaGiorno = (ymd) => ymdData(ymd).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -1377,6 +1391,27 @@ async function vistaInfortunati() {
   APP.querySelectorAll("[data-inf]").forEach((b) => b.onclick = () => { ls.set("infF", b.dataset.inf); vistaInfortunati(); });
 }
 
+
+// ---------- STASERA: tutte le partite non ancora iniziate, con giocata migliore e assenti
+async function vistaStasera() {
+  const top = topBar() + segEsplora("s"); APP.innerHTML = top + skel();
+  let D; try { D = await dati(); } catch (e) { APP.innerHTML = top + errBox(e); return; }
+  const pre = D.partite.filter((p) => p.stato === "pre").sort((a, b) => (a.iso < b.iso ? -1 : 1)), live = D.partite.filter((p) => p.stato === "in");
+  let h = top + bannerErrore(D);
+  const top3 = D.picks.filter((x) => pre.some((p) => p.id === x.g)).sort((a, b) => b.prob - a.prob).slice(0, 3);
+  if (top3.length) h += `<h2 class="sez">Le tre giocate migliori</h2>` + top3.map((x) => cardPick(x)).join("");
+  if (live.length) h += `<a class="btn" href="#/live" style="display:block;text-align:center"><span class="dot"></span> ${live.length} ${live.length === 1 ? "partita in corso" : "partite in corso"}: vai al Live</a>`;
+  h += `<h2 class="sez">${pre.length ? "Da giocare" : "Nessuna partita da giocare"}</h2>`;
+  for (const p of pre) {
+    const mie = D.picks.filter((x) => x.g === p.id).sort((a, b) => b.prob - a.prob)[0], out = (p.inf || []).filter((i) => i.stato === "out"), dub = (p.inf || []).filter((i) => i.stato !== "out");
+    h += `<a class="card" href="#/partita/${p.id}" style="display:block;color:inherit"><div class="riga"><div class="lg">${logo(p.casa, 28)}<b>${esc(p.casa)}</b></div><div style="text-align:center"><b style="font-size:17px">${esc(String(p.ora).slice(-5))}</b><div class="s">stimati ${p.r ? p.r.ptCasa.toFixed(0) + "-" + p.r.ptTr.toFixed(0) : "–"}</div></div><div class="lg"><b>${esc(p.trasf)}</b>${logo(p.trasf, 28)}</div></div>` +
+      (mie ? `<div class="riga" style="margin-top:8px"><span class="s">Migliore: <b style="color:#fff">${esc(mie.testo)}</b></span><b style="color:${colProb(mie.prob)}">${pct(mie.prob)}</b></div>` : "") +
+      (out.length ? `<div class="s" style="margin-top:4px;color:${RD}">Fuori: ${out.map((i) => esc(i.nome) + " (" + esc(T(D, i.sq).b) + ")").join(", ")}</div>` : "") +
+      (dub.length ? `<div class="s" style="margin-top:2px;color:${AM}">In dubbio: ${dub.map((i) => esc(i.nome)).join(", ")}</div>` : "") + `</a>`;
+  }
+  APP.innerHTML = h;
+}
+
 // scheda di un giocatore che oggi non gioca: medie e ultime 10 partite
 async function schedaGiocatoreLibero(pid, back) {
   let S; try { S = await api("/api/giocatore?pid=" + encodeURIComponent(pid), 600000); } catch (e) { APP.innerHTML = back + errBox(e); return; }
@@ -1404,6 +1439,7 @@ function route(force) {
   else if (hsh.startsWith("/conto")) vistaConto();
   else if (hsh.startsWith("/classifica")) vistaClassifica();
   else if (hsh.startsWith("/calendario")) vistaCalendario();
+  else if (hsh.startsWith("/stasera")) vistaStasera();
   else if (hsh.startsWith("/cerca")) vistaCerca();
   else if (hsh.startsWith("/infortunati")) vistaInfortunati();
   else if (/^\/squadra\/[A-Za-z]{2,4}$/.test(hsh)) vistaSquadra(hsh.split("/")[2].toUpperCase());
@@ -1446,5 +1482,5 @@ window.addEventListener("pagehide", salvaPosizione);
 let ripristinaY = null;
 { const u = ls.get("ult", null); if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/") && u.h && u.h !== "#/") { location.hash = u.h; ripristinaY = u.y; } else if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/")) ripristinaY = u.y; }
 route();
-setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
+applicaAspetto(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
 if (ripristinaY) for (const ms of [500, 1200, 2500]) setTimeout(() => window.scrollTo(0, ripristinaY), ms);

@@ -234,3 +234,7 @@ h2.sez.live{color:var(--or)}
 .tlf{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:50%;background:#232a3a;color:#cfd4df;font-family:'Barlow Condensed',Inter,sans-serif;font-weight:700;letter-spacing:.02em}
 .bell{font-size:18px;padding:2px 4px;margin:0}.bell i{vertical-align:middle}.toastn{position:fixed;left:14px;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:70;background:#1c2230;border:1px solid rgba(255,138,42,.5);border-radius:14px;padding:12px 14px;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .bell{opacity:.55;font-size:17px}.bell.on{opacity:1}
+
+/* tema chiaro: si inverte la pagina e si raddrizzano le immagini */
+html.chiaro{filter:invert(1) hue-rotate(180deg)}
+html.chiaro img,html.chiaro video{filter:invert(1) hue-rotate(180deg)}

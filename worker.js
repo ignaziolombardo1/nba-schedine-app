@@ -608,7 +608,7 @@ export default {
   },
   // ogni 30 minuti: salva i consigli delle partite che non sono iniziate e verifica quelle finite
   async scheduled(event, env, ctx) {
-    if (event.cron === "5,35 * * * *") { ctx.waitUntil(cronAvvisi(env).catch(() => {})); return; }
+    if (event.cron === "*/5 * * * *") { ctx.waitUntil(cronAvvisi(env).catch(() => {})); return; }
     if (event.cron === "20,50 * * * *") { ctx.waitUntil(cronQuote(env).catch(() => {})); ctx.waitUntil(aggiornaSquadre(env).catch(() => {})); return; }
     if (event.cron === "10,40 * * * *") { ctx.waitUntil(aggiornaForma(env).catch(() => {})); return; }
     ctx.waitUntil((async () => {
