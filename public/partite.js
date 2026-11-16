@@ -10,6 +10,14 @@ function avvisiDati(D, daCache) {
   return h;
 }
 // la giocata più probabile tra quelle delle partite ancora da giocare (o la migliore in assoluto)
+// riepilogo in cima alla Home: schedine aperte e quando parte la prima
+function riepilogoAperte(D) {
+  const aperte = ls.get("registro", []).filter((r) => r.esito == null); if (!aperte.length) return "";
+  const ids = new Set(); for (const r of aperte) for (const l of r.legs || []) ids.add(String(l.g));
+  const pre = D.partite.filter((p) => ids.has(String(p.id)) && p.stato === "pre").sort((a, b) => (a.iso < b.iso ? -1 : 1)), live = D.partite.filter((p) => ids.has(String(p.id)) && p.stato === "in").length;
+  const t = live ? `${live} ${live === 1 ? "partita è" : "partite sono"} in corso` : pre.length ? `la prima parte alle ${String(pre[0].ora).slice(-5)}` : "controlla l'esito nel registro";
+  return `<a class="card riga" href="#/registro" style="padding:10px 14px;color:inherit;margin-bottom:10px;border-color:rgba(255,138,42,.4)"><div class="lg"><i class="ti ti-ticket" style="font-size:22px;color:var(--or)"></i><div><b>${aperte.length} ${aperte.length === 1 ? "schedina aperta" : "schedine aperte"}</b><div class="s">${t}</div></div></div><i class="ti ti-chevron-right" style="color:var(--mut)"></i></a>`;
+}
 function giocataDelGiorno(D) {
   const n = D.partite.length; if (!n) return "";
   const live = D.partite.filter((p) => p.stato === "in").length, fin = D.partite.filter((p) => p.stato === "post").length, pre = n - live - fin;
@@ -122,7 +130,7 @@ function disegnaPartite(D, conPoll, daCache) {
   let h = topBar(D) + rigaEsplora() + giorniChips();
   if (!D.partite.length) h += `<div class="vuoto">Nessuna partita trovata per questo giorno. Prova un altro giorno.</div>`;
   h += avvisiDati(D, daCache);
-  h += bannerErrore(D) + giocataDelGiorno(D);
+  h += bannerErrore(D) + riepilogoAperte(D) + giocataDelGiorno(D);
   { const m = confrontoMercato(D); if (m) h += `<details class="dt"><summary>Confronto con i bookmaker</summary>${m}</details>`; }
   if (D.partite.length) h += riquadroPreferiti(D);
   h += `<div id="hnews"></div>`;
