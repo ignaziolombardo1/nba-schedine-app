@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "68";
+const VERSIONE = "69";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -704,7 +704,7 @@ async function vistaMia() {
     }
     const q = L.reduce((a, l) => a / Math.max(0.05, l.prob), 1), p = L.reduce((a, l) => a * l.prob, 1), stessa = new Set(L.map((l) => l.g)).size < L.length;
     el.innerHTML = L.map((l, i) => `<div class="card cardp"><div style="min-width:0"><div class="s">${esc(l.partita)}${l.mia ? " · scelta da te" : ""}</div><div style="font-weight:500">${esc(l.testo)}</div></div><div style="text-align:right"><div class="v" style="color:${colProb(l.prob)}">${pct(l.prob)}</div><button class="chipbtn" data-rm="${i}" style="padding:2px 9px;font-size:11px">Togli</button></div></div>`).join("") +
-    `<div class="card"><div class="row3"><div class="tile"><b>${(p * 100).toFixed(0)}%</b><span>tutte centrate</span></div><div class="tile"><b>${q.toFixed(2)}</b><span>quota giusta</span></div><div class="tile"><b>${L.length}</b><span>giocate</span></div></div>${stessa ? `<div class="cap" style="margin:8px 0 0;color:${AM}">Ci sono più giocate della stessa partita: la probabilità reale è diversa da quella calcolata.</div>` : ""}
+    `<div class="card"><div class="row3"><div class="tile"><b>${(p * 100).toFixed(0)}%</b><span>tutte centrate</span></div><div class="tile"><b>${q.toFixed(2)}</b><span>quota giusta</span></div><div class="tile"><b>${L.length}</b><span>giocate</span></div></div>${stessa ? `<div class="cap" style="margin:8px 0 0;color:${AM}">Ci sono più giocate della stessa partita: la probabilità reale è diversa da quella calcolata.</div>` : ""}${confrontoMia(L, p, D)}
     <div class="grid2" style="margin-top:10px"><input class="linea" inputmode="decimal" placeholder="Quota offerta (es. 4.50)" id="miaq" style="margin:0"><input class="linea" inputmode="decimal" placeholder="Puntata €" id="miap" value="${impo().puntata}" style="margin:0"></div><div id="miaval"></div>
     <button class="btn" id="miaok" style="margin:6px 0 0"><i class="ti ti-notebook"></i> Salva e segui in diretta</button><div class="grid2" style="gap:8px;margin-top:8px"><button class="btn" id="miacp" style="margin:0"><i class="ti ti-copy"></i> Copia</button><button class="btn" id="miasvuota" style="margin:0">Svuota</button></div></div>`;
     el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { const l = miaLeggi(); l.splice(+b.dataset.rm, 1); ls.set("mia", l); barraMia(); riepilogo(); lista(); });
@@ -756,13 +756,22 @@ async function vistaMia() {
 
 // ---------- SCHEDINE
 const TONI = { ok: [GR, "ti-shield-check"], mid: [OR, "ti-scale"], alta: [RD, "ti-flame"] };
+// confronto della tua schedina con quello che propone il modello
+function confrontoMia(L, p, D) {
+  const deboli = L.filter((l) => l.prob < 0.7), pr = ((D && D.schedine) || []).filter((x) => x.legs.length === L.length || x.id === "sicura"), simile = pr.sort((a, b) => Math.abs(a.legs.length - L.length) - Math.abs(b.legs.length - L.length))[0];
+  let t = "";
+  if (deboli.length) t += `<div class="cap" style="margin:8px 0 0;color:${AM}"><b>${deboli.length} ${deboli.length === 1 ? "giocata è" : "giocate sono"} sotto il 70%</b> per il modello: ${deboli.map((l) => esc(l.testo) + " (" + pct(l.prob) + ")").join("; ")}. Sono quelle che abbassano di più la tua schedina.</div>`;
+  else t += `<div class="cap" style="margin:8px 0 0;color:${GR}">Tutte le giocate sono almeno al 70% per il modello.</div>`;
+  if (simile) t += `<div class="cap" style="margin:6px 0 0">La più simile proposta dal modello: «${esc(simile.nome)}» con ${simile.legs.length} giocate, si centra il ${pct(simile.prob)} (la tua: ${(p * 100).toFixed(0)}%).</div>`;
+  return t;
+}
 function testoSchedina(s) { return `${s.nome} (${s.legs.length} giocate, probabilità unita ${pct(s.prob)})\n` + s.legs.map((l) => `• ${l.testo} (${l.partita}) ${pct(l.prob)}`).join("\n"); }
 function cardSchedina(s) {
   const [col, ic] = TONI[s.tono] || [OR, "ti-ticket"];
   return `<div class="card sch" style="border-top:3px solid ${col};padding:12px 14px"><div class="riga" style="align-items:center"><div><div class="sn"><i class="ti ${ic}" style="color:${col}"></i> ${esc(s.nome)}</div><div class="s">${esc(s.sotto)}</div></div><div style="text-align:right"><div class="sp" style="color:${col}">${pct(s.prob)}</div><div class="s">quota ${s.quotaEqua.toFixed(2)}</div></div></div>
   <div style="margin:8px 0 4px">${s.legs.map((l) => `<div class="leg" style="gap:8px;padding:4px 0">${l.pid ? foto(l.pid, 26) : l.squadra ? logo(l.squadra, 24) : `<span class="ph" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:${OR}"></i></span>`}<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13.5px">${esc(l.testo)}</div><div class="s" style="font-size:11px">${esc(l.partita)} · ${esc(String(l.ora).slice(-5))}</div></div><b style="color:${colProb(l.prob)}">${pct(l.prob)}</b></div>`).join("")}</div>
   ${s.stessaPartita ? `<div class="s" style="color:${AM};margin-bottom:6px">Più giocate della stessa partita: la probabilità reale è diversa.</div>` : ""}
-  <div class="grid2" style="gap:8px"><button class="btn cp" data-cp="${esc(testoSchedina(s))}" style="margin:0"><i class="ti ti-copy"></i> Copia</button>${btnRegistro({ id: s.chiave, chiave: s.chiave, nome: s.nome, testo: s.legs.map((l) => l.testo).join(" + "), prob: s.prob })}</div></div>`;
+  <div class="grid2" style="gap:8px"><button class="btn cp" data-cp="${esc(testoSchedina(s))}" style="margin:0"><i class="ti ti-share"></i> ${navigator.share ? "Condividi" : "Copia"}</button>${btnRegistro({ id: s.chiave, chiave: s.chiave, nome: s.nome, testo: s.legs.map((l) => l.testo).join(" + "), prob: s.prob })}</div></div>`;
 }
 async function vistaSchedine(force) {
   APP.innerHTML = topBar() + giorniChips() + skel(); bindGiorni();
@@ -776,7 +785,7 @@ async function vistaSchedine(force) {
   if (singola) h += `<h2>Singola del giorno</h2><div class="card riga" style="gap:12px;border-top:3px solid ${GR}">${anello(singola.prob * 100, colProb(singola.prob), 64)}<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:16px">${esc(singola.testo)}</div><div class="s">${esc(singola.partita)} · stima ${esc(singola.stima)}</div></div></div>${btnRegistro({ id: chiaveGiocata(singola), chiave: chiaveGiocata(singola), nome: "Singola", testo: singola.testo, prob: singola.prob })}<div class="cap">${esc(singola.motivo)}</div>`;
   h += `<div class="cap">Più giocate unisci, meno la schedina è probabile: tre giocate al 80% insieme valgono circa il 51%.</div>`;
   APP.innerHTML = h; bindGiorni(); bindRegistro();
-  APP.querySelectorAll(".cp").forEach((b) => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.cp); b.innerHTML = `<i class="ti ti-check"></i> Copiata`; } catch { b.textContent = "Copia non riuscita"; } });
+  APP.querySelectorAll(".cp").forEach((b) => b.onclick = async () => { try { if (navigator.share) { await navigator.share({ title: "NBA Schedine", text: b.dataset.cp + "\n\nStime del modello, non certezze." }); return; } await navigator.clipboard.writeText(b.dataset.cp); b.innerHTML = `<i class="ti ti-check"></i> Copiata`; } catch (e) { if (e && e.name === "AbortError") return; try { await navigator.clipboard.writeText(b.dataset.cp); b.innerHTML = `<i class="ti ti-check"></i> Copiata`; } catch { b.textContent = "Copia non riuscita"; } } });
 }
 
 // ---------- COMBO
