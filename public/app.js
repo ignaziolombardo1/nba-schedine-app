@@ -4,7 +4,7 @@ const APP = $("#app");
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const OR = "#ff8a2a", GR = "#3ddc84", RD = "#ff5d5d", AM = "#ffb066", MU = "#8b93a5";
 const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "62";
+const VERSIONE = "63";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -793,18 +793,21 @@ async function vistaStudio(id, force) {
   const picks = D.picks.filter((x) => x.g === id), r = p.r;
   const mer = ls.get("mercato", "Punti");
   let h = `<a class="back" href="#/"><i class="ti ti-chevron-left"></i>Partite</a>` + schedaPartita(D, p, picks[0], false);
-  h += `<h2>Giocate consigliate</h2>`;
-  if (!picks.length) h += `<div class="vuoto">Nessuna giocata sopra la soglia per questa partita.</div>`;
-  for (const [t, l] of raggruppa(picks)) if (l.length) h += `<div class="sub">${esc(t)}</div>` + l.map((x) => cardPick(x) + `<div class="cap">${esc(x.motivo)}</div>`).join("");
+  // 1) i migliori delle due squadre con le loro medie
+  if (p.giocatori.length) {
+    h += `<h2>I migliori</h2><div class="card">` + [p.casa, p.trasf].map((sq, i) => {
+      const ds = [...p.giocatori.filter((x) => x.sq === sq)].sort((a, b) => b.pts.media - a.pts.media).slice(0, 4), stima = i === 0 ? r.ptCasa : r.ptTr;
+      return `<div${i ? ' style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"' : ""}><div class="riga"><div class="lg">${logo(sq, 26)}<b>${esc(T(D, sq).n)}</b></div><span class="s">stima ${stima.toFixed(0)} punti</span></div>` +
+        `<div class="s" style="display:grid;grid-template-columns:1fr 44px 44px 44px;gap:2px 6px;margin-top:6px;text-align:right"><span></span><span>PT</span><span>RB</span><span>AS</span>` +
+        ds.map((x) => `<a href="#/giocatore/${esc(x.pid)}" style="text-align:left;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.nome)}${x.inf ? ` <span style="color:${AM}">⚠</span>` : ""}</a><b>${x.pts.media.toFixed(1).replace(".", ",")}</b><b>${x.reb.media.toFixed(1).replace(".", ",")}</b><b>${x.ast.media.toFixed(1).replace(".", ",")}</b>`).join("") + `</div></div>`;
+    }).join("") + `<div class="cap" style="margin:8px 0 0">Medie della stagione per partita. Tocca un giocatore per aprire la sua pagina.</div></div>`;
+  }
+  // 2) consigli della partita divisi per tipo
+  const gruppi = { p: ["Partita", (x) => ["Vincente", "Totale"].includes(x.tipo)], s: ["Squadre", (x) => x.tipo === "Squadra"], g: ["Giocatori", (x) => ["Punti", "Rimbalzi", "Assist"].includes(x.tipo)] };
+  let stt = ls.get("studioTab", "p"); if (!gruppi[stt]) stt = "p";
+  h += `<h2>Consigli partita</h2><div class="seg" id="sttab">${Object.entries(gruppi).map(([k, [n, f]]) => `<a data-stt="${k}"${k === stt ? ' class="on"' : ""}>${n} <span class="s">${picks.filter(f).length}</span></a>`).join("")}</div><div id="stc"></div>`;
   h += `<h2>Testa a testa</h2><div id="h2h"><div class="skel" style="height:70px"></div></div>`;
   h += `<h2>Ultimi incontri</h2><div id="ultime"><div class="skel" style="height:90px"></div></div>`;
-  if (p.giocatori.length) {
-    h += `<h2>I migliori di ogni squadra</h2>`;
-    for (const sq of [p.casa, p.trasf]) {
-      const ds = p.giocatori.filter((x) => x.sq === sq);
-      h += `<div class="card"><div class="lg" style="margin-bottom:6px">${logo(sq, 26)}<b>${esc(T(D, sq).n)}</b></div>` + Object.entries(MERC).map(([m, c]) => `<div class="s" style="margin-top:8px">${m.toUpperCase()}</div>` + [...ds].sort((a, b) => b[c.k].v - a[c.k].v).slice(0, 3).map((x, i) => `<div class="riga" style="padding:2px 0"><span>${i + 1}. ${esc(x.nome)}</span><b style="color:${i === 0 ? OR : "#f2f2f2"}">${x[c.k].v.toFixed(1)}</b></div>`).join("")).join("") + `</div>`;
-    }
-  }
   const lt = D.linee["tot_" + p.casa] ?? (r.mk && r.mk.tot ? r.mk.tot.linea : undefined), lineaT = ls.get("L_tot_" + id, lt ?? "");
   h += `<h2>Totale e spread</h2><div class="card"><div class="s">Over/Under (punti totali)</div>${gauge(r.totale, lineaT)}<div id="totp" class="s"></div><input class="linea" id="lt" inputmode="decimal" placeholder="Linea Over/Under (es. 224.5)" value="${esc(lineaT)}">${mercatoPartita(p)}</div>`;
   if (p.giocatori.length) {
@@ -822,6 +825,13 @@ async function vistaStudio(id, force) {
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) note.push(`${T(D, s).b} ha giocato ieri: stima ridotta di circa 1.2 punti.`);
   h += `<h2>Da controllare prima di decidere</h2><div class="cap" style="display:grid;gap:6px">${note.map((n) => `<div>• ${esc(n)}</div>`).join("")}</div>`;
   APP.innerHTML = h;
+  const contStudio = (k) => {
+    const l = picks.filter(gruppi[k][1]); if (!l.length) return `<div class="vuoto">Nessuna giocata sopra la soglia in questa sezione.</div>`;
+    if (k === "p") return [...raggruppa(l)].filter(([, v]) => v.length).map(([t, v]) => `<div class="sub">${esc(t)}</div>` + v.map((x) => cardPick(x) + `<div class="cap">${esc(x.motivo)}</div>`).join("")).join("");
+    return [p.casa, p.trasf].map((sq) => { const v = l.filter((x) => x.squadra === sq); return v.length ? `<div class="sub lg">${logo(sq, 20)}<b>${esc(T(D, sq).n)}</b></div>` + v.map((x) => cardPick(x) + `<div class="cap">${esc(x.motivo)}</div>`).join("") : ""; }).join("");
+  };
+  $("#stc").innerHTML = contStudio(stt);
+  APP.querySelectorAll("[data-stt]").forEach((b) => b.onclick = () => { ls.set("studioTab", b.dataset.stt); APP.querySelectorAll("[data-stt]").forEach((x) => x.classList.toggle("on", x === b)); $("#stc").innerHTML = contStudio(b.dataset.stt); });
   aggiornaTot(r);
   $("#lt").oninput = (e) => { ls.set("L_tot_" + id, e.target.value); aggiornaTot(r); };
   APP.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => { ls.set("mercato", b.dataset.m); vistaStudio(id); });
