@@ -199,7 +199,48 @@ async function iscriviPush(env, sub) {
 async function salvaPrefPush(env, d) {
   const el = (await rigaForma(env, "_push")) || { subs: [] }, sb = el.subs.find((x) => x.endpoint === (d || {}).endpoint); if (!sb) return false;
   const P = d.pref || {}; sb.pref = { gm: (P.gm || []).slice(0, 40).filter((x) => /^\d+$/.test(String(x))).map(String), sq: (P.sq || []).slice(0, 30).map(String), pl: (P.pl || []).slice(0, 30).map((x) => ({ pid: String(x.pid), nome: String(x.nome || ""), sq: String(x.sq || "") })) };
+  if (codiceOk(d.codice)) sb.codice = d.codice;
   await salvaRigaForma(env, "_push", el); return true;
+}
+
+// ---- Schedine personali sul server: ogni telefono ha un codice (si può inserire su un altro telefono per condividere registro e conto)
+const codiceOk = (c) => /^[a-z0-9]{8,16}$/.test(String(c || ""));
+const fondiReg = (o, r) => { const m = { ...o, ...r }; if (r.esito == null && o.esito != null) { m.esito = o.esito; m.nota = o.nota ?? r.nota; } const eo = (o.es || []).filter((x) => x.esito != null).length, er = (r.es || []).filter((x) => x.esito != null).length; if (eo > er) m.es = o.es; return m; };
+async function sincronizza(env, d) {
+  if (!codiceOk(d.codice)) throw new Error("codice non valido");
+  const pid = "_reg_" + d.codice, S = (await rigaForma(env, pid)) || { registro: [], mov: [], del: [], avv: {} };
+  const del = new Set([...(S.del || []), ...(Array.isArray(d.del) ? d.del : []).map(String)]);
+  const unisci = (a, b) => { const m = new Map(); for (const r of Array.isArray(a) ? a : []) if (r && r.id != null) m.set(String(r.id), r); for (const r of Array.isArray(b) ? b : []) if (r && r.id != null) { const o = m.get(String(r.id)); m.set(String(r.id), o ? fondiReg(o, r) : r); } return [...m.values()].filter((r) => !del.has(String(r.id))); };
+  // le righe del telefono vengono per prime (sono le più recenti); poi quelle che c'erano solo sul server
+  const registro = unisci(S.registro, d.registro).sort((a, b) => (String(a.data) < String(b.data) ? 1 : String(a.data) > String(b.data) ? -1 : 0)).slice(0, 600), mov = unisci(S.mov, d.mov).slice(0, 600);
+  const nuovo = { registro, mov, del: [...del].slice(-400), avv: S.avv || {} };
+  if (JSON.stringify(nuovo).length < 900000) await salvaRigaForma(env, pid, nuovo);
+  return { registro, mov, del: nuovo.del };
+}
+// avvisi sulle proprie schedine: "quasi presa" (manca una giocata), "presa", "persa"
+async function avvisiSchedine(env, g) {
+  const el = (await rigaForma(env, "_push").catch(() => null)) || { subs: [] }, subs = el.subs.filter((x) => codiceOk(x.codice));
+  if (!subs.length || !g.partite.some((p) => p.stato !== "pre")) return [];
+  const out = [], cache = {}, lim = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10); let budget = 8;
+  for (const cod of [...new Set(subs.map((x) => x.codice))]) {
+    const pid = "_reg_" + cod, S = await rigaForma(env, pid); if (!S || !Array.isArray(S.registro)) continue;
+    S.avv ||= {}; let cambiato = false;
+    for (const r of S.registro) {
+      if (budget <= 0) break;
+      if (r.esito != null || !r.legs || !r.legs.length || String(r.data) < lim) continue;
+      budget--;
+      const es = await valutaGiocate(r.legs, cache), a = (S.avv[r.id] ||= {}), n = r.legs.length;
+      const perse = es.map((e, i) => (e.esito === 0 ? i : -1)).filter((i) => i >= 0), aperte = es.map((e, i) => (e.esito == null ? i : -1)).filter((i) => i >= 0), prese = es.filter((e) => e.esito === 1).length;
+      const det = (i) => `${r.legs[i].testo}${es[i].cur != null ? ` (ora ${es[i].cur})` : ""}`;
+      let m = null;
+      if (perse.length && !a.p) { a.p = 1; m = { titolo: "❌ Schedina persa", testo: `${r.nome || "La tua schedina"}: sbagliata ${det(perse[0])}`, url: "/#/registro" }; r.esito = 0; }
+      else if (!perse.length && !aperte.length && prese > 0 && !a.v) { a.v = 1; m = { titolo: "✅ Schedina presa!", testo: `${r.nome || "La tua schedina"}: tutte le ${n} giocate centrate`, url: "/#/registro" }; r.esito = 1; }
+      else if (!perse.length && aperte.length === 1 && n > 1 && !a.q && !a.v) { a.q = 1; m = { titolo: "🔥 Schedina quasi presa", testo: `${r.nome || "La tua schedina"}: manca solo ${det(aperte[0])}`, url: "/#/live" }; }
+      if (m) { cambiato = true; await accodaPush(env, m, (sb) => sb.codice === cod); out.push("schedina " + r.id); }
+    }
+    if (cambiato) await salvaRigaForma(env, pid, S);
+  }
+  return out;
 }
 async function ritiraAvviso(env, id) {
   const base = { titolo: "NBA Schedine", testo: "Apri l'app per vedere le giocate", url: "/#/" };
@@ -266,6 +307,8 @@ async function cronAvvisi(env) {
       }
     }
   }
+  // 1c) schedine personali: quasi presa / presa / persa
+  try { fatto.push(...(await avvisiSchedine(env, g))); } catch {}
   // 2) risultati: una volta, quando tutte le partite del giorno sono finite
   if (!oggi.e && g.partite.every((p) => p.stato === "post")) {
     const S = await apiStorico(env), ids = new Set(g.partite.map((p) => p.id));
@@ -375,10 +418,10 @@ async function apiGiorno(env, ctx, offset, data = null) {
 // partite finite -> consigli ricalcolati e confrontati con i risultati
 
 // esito delle giocate di una schedina scritta dall'utente: 1 centrata, 0 persa, null in attesa, 2 annullata (giocatore che non ha giocato)
-async function valutaGiocate(legs) {
+async function valutaGiocate(legs, cache = {}) {
   const L = (Array.isArray(legs) ? legs : []).slice(0, 24).filter((l) => /^\d+$/.test(String(l.g)) && ["pts", "reb", "ast", "tot", "sq", "win"].includes(l.k));
   const partite = {};
-  await Promise.all([...new Set(L.map((l) => String(l.g)))].slice(0, 10).map(async (g) => { try { partite[g] = await caricaEsitoPartita(g); } catch { partite[g] = null; } }));
+  await Promise.all([...new Set(L.map((l) => String(l.g)))].slice(0, 10).map(async (g) => { try { partite[g] = await (cache[g] ||= caricaEsitoPartita(g)); } catch { partite[g] = null; } }));
   return L.map((l) => {
     const p = partite[String(l.g)]; if (!p) return { esito: null, nota: "partita non leggibile" };
     const over = l.dir !== "under", sg = +l.soglia; let cur = null;
@@ -506,6 +549,7 @@ export default {
       if (p === "/api/push-iscrivi" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); await iscriviPush(env, await req.json()); return J({ ok: true }); }
       if (p === "/api/push-prova" && req.method === "POST") { const r = await pushATutti(env, "✅ Notifiche attive", "NBA Schedine ti avviserà con il riepilogo ogni mattina e i risultati a fine giornata."); return J(r); }
       if (p === "/api/ultimo-avviso") return J(await ritiraAvviso(env, url.searchParams.get("id") || ""), 0);
+      if (p === "/api/sync" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J(await sincronizza(env, await req.json()), 0); }
       if (p === "/api/push-pref" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ ok: await salvaPrefPush(env, await req.json()) }); }
       if (p === "/api/h2h") { const x = (url.searchParams.get("a") || "").toUpperCase(), y = (url.searchParams.get("b") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(x) || !/^[A-Z]{2,4}$/.test(y)) return ERR("sigla non valida", 400); return J({ a: x, b: y, partite: await testaATesta(x, y) }, 1800); }
       if (p === "/api/ultime") { const s = (url.searchParams.get("s") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(s)) return ERR("sigla non valida", 400); return J({ s, ultime: await caricaUltime(s) }, 600); }

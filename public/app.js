@@ -3,8 +3,13 @@ const $ = (s, r = document) => r.querySelector(s);
 const APP = $("#app");
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const OR = "#ff8a2a", GR = "#3ddc84", RD = "#ff5d5d", AM = "#ffb066", MU = "#8b93a5";
-const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "65";
+const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try {
+  if (k === "registro" || k === "mov") { // ricorda cosa è stato tolto, così la sincronizzazione non lo rimette
+    const ids = new Set((v || []).map((r) => String(r.id))), dl = ls.get("delIds", []); for (const r of ls.get(k, [])) if (r && r.id != null && !ids.has(String(r.id))) dl.push(String(r.id));
+    localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
+  }
+  localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const VERSIONE = "66";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -342,9 +347,26 @@ async function avvisoNotifiche() {
     d.innerHTML = `Per ricevere l'avviso attiva le notifiche: <a href="#/impostazioni" style="color:var(--or)">Impostazioni</a>`; document.body.appendChild(d); setTimeout(() => d.remove(), 6000);
   } catch {}
 }
+
+// ---------- sincronizzazione di registro e conto sul server (codice per telefono, condivisibile tra più telefoni)
+function codiceSync() { let c = ls.get("codice", ""); if (!/^[a-z0-9]{8,16}$/.test(c)) { const a = crypto.getRandomValues(new Uint8Array(10)); c = [...a].map((x) => "abcdefghijkmnpqrstuvwxyz23456789"[x % 32]).join(""); ls.set("codice", c); } return c; }
+let sincInCorso = false;
+async function sincReg() {
+  if (sincInCorso) return; sincInCorso = true;
+  try {
+    const inv = { registro: localStorage.getItem("registro") || "[]", mov: localStorage.getItem("mov") || "[]", del: localStorage.getItem("delIds") || "[]" };
+    const r = await fetch("/api/sync", { method: "POST", body: JSON.stringify({ codice: codiceSync(), registro: JSON.parse(inv.registro), mov: JSON.parse(inv.mov), del: JSON.parse(inv.del) }) }); if (!r.ok) return;
+    const d = await r.json();
+    if ((localStorage.getItem("registro") || "[]") !== inv.registro || (localStorage.getItem("mov") || "[]") !== inv.mov) return; // nel frattempo è cambiato qualcosa: si riprova al prossimo giro
+    const nuovo = JSON.stringify(d.registro), cambiato = nuovo !== inv.registro || JSON.stringify(d.mov) !== inv.mov;
+    localStorage.setItem("registro", nuovo); localStorage.setItem("mov", JSON.stringify(d.mov)); localStorage.setItem("delIds", JSON.stringify(d.del || []));
+    if (cambiato && /^#\/(registro|conto|live)/.test(location.hash)) route(true);
+  } catch {} finally { sincInCorso = false; }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) sincReg(); });
 async function sincPref() {
   try { if (!("serviceWorker" in navigator) || !("PushManager" in window)) return; const reg = await navigator.serviceWorker.ready, sb = await reg.pushManager.getSubscription(); if (!sb) return;
-    await fetch("/api/push-pref", { method: "POST", body: JSON.stringify({ endpoint: sb.endpoint, pref: pref() }) }); } catch {}
+    await fetch("/api/push-pref", { method: "POST", body: JSON.stringify({ endpoint: sb.endpoint, pref: pref(), codice: codiceSync() }) }); } catch {}
 }
 let firmaHome = "", ultimoD = null;
 const firmaDati = (D) => (D.erroreAgg ? "E" : "") + D.partite.map((p) => p.id + p.stato + p.ptTr + p.ptCasa).join(",");
@@ -407,6 +429,7 @@ function vistaImpostazioni() {
   h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-bell"></i> Notifiche sul telefono</div>` + (pushOk
     ? `<div class="cap" style="margin:4px 0 8px">Ogni mattina la Giocata del giorno e le schedine quota 2, 5, 10 e 20; a fine giornata i risultati. Per le squadre e i giocatori con la ★ e per le partite con la 🔔 ricevi l'inizio e la fine della partita, con i numeri dei tuoi giocatori.</div><div class="grid2"><button class="btn" id="pushOn" style="margin:0">Attiva</button><button class="btn" id="pushProva" style="margin:0">Invia prova</button></div><div class="cap" id="pushMsg" style="margin-bottom:0">${Notification.permission === "granted" ? "Permesso già concesso: tocca «Attiva» per collegare questo telefono." : Notification.permission === "denied" ? "Le notifiche sono bloccate nelle impostazioni del telefono per questa app." : ""}</div>`
     : `<div class="cap" style="margin:4px 0 0">Per le notifiche su iPhone serve iOS 16.4 o più recente e l'app aperta dalla schermata Home: in Safari tocca Condividi → «Aggiungi alla schermata Home», poi apri l'app da lì e torna qui.</div>`) + `</div>`;
+  h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-refresh"></i> Sincronizzazione</div><div class="cap" style="margin:4px 0 8px">Schedine, registro e conto sono salvati anche sul server: non li perdi se cambi telefono e ricevi gli avvisi «quasi presa», «presa» e «persa». Per usare lo stesso conto su un altro telefono, inserisci lì questo codice.</div><div class="riga"><b style="letter-spacing:2px;font-size:18px">${esc(codiceSync())}</b><button class="btn" id="cpCod" style="margin:0;width:auto;padding:6px 14px">Copia</button></div><input class="linea" id="altroCod" placeholder="Codice di un altro telefono" autocapitalize="none" style="margin-top:10px"><button class="btn" id="colCod" style="margin-top:8px">Collega questo telefono a quel codice</button><div class="cap" id="codMsg" style="margin-bottom:0"></div></div>`;
   h += `<div class="card"><div class="sub" style="margin-top:0">Puntata predefinita nel registro (€)</div><input class="linea" inputmode="decimal" id="pun" value="${i.puntata}" style="margin-top:0"></div>`;
   h += `<div class="card"><div class="sub" style="margin-top:0">Bankroll (€)</div><input class="linea" inputmode="decimal" id="bk" value="${i.bankroll}" style="margin-top:0"><div class="sub">Quanto del consiglio di Kelly seguire</div><div class="tabs">${[[0.1, "10%"], [0.25, "25%"], [0.5, "50%"]].map(([v, t]) => `<button class="chipbtn${i.kelly === v ? " on" : ""}" data-kl="${v}">${t}</button>`).join("")}</div><div class="cap">Il bankroll serve a calcolare la puntata consigliata e la curva nel registro. Meglio una frazione prudente di Kelly: 25% è lo standard dei tipster.</div></div>`;
   h += `<button class="btn" id="ripr">Ripristina le impostazioni iniziali</button>`;
@@ -430,6 +453,8 @@ function vistaImpostazioni() {
     };
     $("#pushProva").onclick = async () => { try { const r = await (await fetch("/api/push-prova", { method: "POST" })).json(); msg(r.inviati ? "Prova inviata: dovrebbe arrivare tra pochi secondi." : "Nessun telefono collegato o invio rifiutato (" + JSON.stringify(r.esiti || []) + "): tocca prima «Attiva»."); } catch (e) { msg("Non riuscito: " + (e.message || e)); } };
   }
+  $("#cpCod").onclick = async () => { try { await navigator.clipboard.writeText(codiceSync()); $("#codMsg").textContent = "Codice copiato."; } catch { $("#codMsg").textContent = "Copia non riuscita: scrivilo a mano."; } };
+  $("#colCod").onclick = async () => { const c = $("#altroCod").value.trim().toLowerCase(); if (!/^[a-z0-9]{8,16}$/.test(c)) { $("#codMsg").textContent = "Codice non valido."; return; } if (c === codiceSync()) { $("#codMsg").textContent = "È già il codice di questo telefono."; return; } if (!confirm("Il registro e il conto di questo telefono si uniranno a quelli del codice inserito. Continuare?")) return; ls.set("codice", c); await sincReg(); sincPref(); vistaImpostazioni(); };
   $("#bk").oninput = (e) => { const v = parseFloat(String(e.target.value).replace(",", ".")); if (v > 0) salva({ bankroll: v }); };
   APP.querySelectorAll("[data-kl]").forEach((b) => b.onclick = () => { salva({ kelly: +b.dataset.kl }); vistaImpostazioni(); });
   $("#ripr").onclick = () => { ls.set("imp", {}); vistaImpostazioni(); };
@@ -1241,5 +1266,5 @@ window.addEventListener("pagehide", salvaPosizione);
 let ripristinaY = null;
 { const u = ls.get("ult", null); if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/") && u.h && u.h !== "#/") { location.hash = u.h; ripristinaY = u.y; } else if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/")) ripristinaY = u.y; }
 route();
-setTimeout(() => { aggiornaRegistro(); sincPref(); }, 2500);
+setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
 if (ripristinaY) for (const ms of [500, 1200, 2500]) setTimeout(() => window.scrollTo(0, ripristinaY), ms);
