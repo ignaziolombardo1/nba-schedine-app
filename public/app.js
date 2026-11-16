@@ -9,7 +9,7 @@ const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v 
     localStorage.setItem("delIds", JSON.stringify([...new Set(dl)].slice(-400))); clearTimeout(window._st); window._st = setTimeout(() => sincReg(), 1500);
   }
   localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const VERSIONE = "74";
+const VERSIONE = "75";
 // blocca lo zoom a pizzico di iOS (che ignora user-scalable)
 for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault());
 const GIORNI = [["Ieri", -1], ["Oggi", 0], ["Domani", 1], ["Dopodomani", 2]];
@@ -570,6 +570,24 @@ async function aggiornaRegistro(reg = ls.get("registro", [])) {
   } finally { aggiornandoReg = false; }
   return reg;
 }
+// ---------- IL MIO MESE: andamento del saldo, esito per tipo di giocata, punti deboli
+function meseDettaglio(mr, chiuse, incasso) {
+  const NK = { pts: "Punti giocatore", reb: "Rimbalzi", ast: "Assist", tot: "Totale partita", sq: "Punti squadra", win: "Vincente" }, ord = [...chiuse].sort((a, b) => String(a.data).localeCompare(String(b.data)) || String(a.id).localeCompare(String(b.id)));
+  let h = "";
+  if (ord.length >= 2) {
+    let cum = 0; const pts = [0, ...ord.map((r) => (cum += incasso(r) - r.puntata))], w = 300, hh = 90, mn = Math.min(...pts, 0), mx = Math.max(...pts, 0), sp = mx - mn || 1, X = (i) => (i / (pts.length - 1) * (w - 8) + 4).toFixed(1), Y = (v) => (hh - 8 - (v - mn) / sp * (hh - 16) + 4).toFixed(1), fin = pts[pts.length - 1], col = fin >= 0 ? GR : RD;
+    h += `<h2>Andamento del mese</h2><div class="card"><div class="riga"><div class="s">Risultato schedina dopo schedina</div><b style="color:${col}">${fin >= 0 ? "+" : ""}${euro(fin)}</b></div><svg viewBox="0 0 ${w} ${hh}" style="width:100%;height:auto;margin-top:6px"><line x1="0" x2="${w}" y1="${Y(0)}" y2="${Y(0)}" stroke="${MU}" stroke-dasharray="3 3" stroke-width="1" opacity=".6"/><polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${pts.map((v, i) => X(i) + "," + Y(v)).join(" ")}"/>${pts.map((v, i) => `<circle cx="${X(i)}" cy="${Y(v)}" r="${i === pts.length - 1 ? 4 : 2.2}" fill="${col}"/>`).join("")}</svg><div class="s">Massimo ${euro(Math.max(...pts))} · minimo ${euro(Math.min(...pts))}</div></div>`;
+  }
+  const per = {}, dirk = {};
+  for (const r of mr) if (r.legs && r.es && r.es.length === r.legs.length) r.legs.forEach((l, i) => { const e = r.es[i]; if (!e || (e.esito !== 0 && e.esito !== 1)) return; const c = (per[l.k] ||= [0, 0]); c[1]++; if (e.esito === 1) c[0]++; const k2 = l.k + "|" + (l.dir === "under" ? "under" : "over"), d = (dirk[k2] ||= [0, 0]); d[1]++; if (e.esito === 1) d[0]++; });
+  const tipi = Object.entries(per).sort((a, b) => b[1][1] - a[1][1]);
+  if (tipi.length) {
+    h += `<h2>Per tipo di giocata</h2><div class="card">` + tipi.map(([k, [ok, n]]) => { const r = ok / n, c = r >= 0.7 ? GR : r >= 0.5 ? AM : RD; return `<div style="margin:6px 0"><div class="riga"><span>${NK[k] || k}</span><span class="s"><b style="color:${c}">${Math.round(r * 100)}%</b> · ${ok}/${n}</span></div><div style="height:6px;border-radius:3px;background:#222a3a;margin-top:3px"><div style="height:6px;border-radius:3px;width:${Math.round(r * 100)}%;background:${c}"></div></div></div>`; }).join("") + `<div class="cap" style="margin:6px 0 0">Percentuale delle singole giocate centrate nelle tue schedine chiuse.</div></div>`;
+    const deboli = Object.entries(dirk).filter(([, [ok, n]]) => n >= 3 && ok / n < 0.5).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).slice(0, 2);
+    h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-target"></i> Punti deboli</div>` + (deboli.length ? deboli.map(([k, [ok, n]]) => { const [t, d] = k.split("|"); return `<div class="s" style="margin-top:4px">Su <b style="color:#fff">${(NK[t] || t).toLowerCase()} ${d}</b> ne prendi poche: <b style="color:${RD}">${ok} su ${n}</b>. Valuta di evitarle o di cercare linee più basse.</div>`; }).join("") : `<div class="s" style="margin-top:4px;color:${GR}">Nessun tipo di giocata sotto il 50% (con almeno 3 giocate).</div>`) + `</div>`;
+  }
+  return h;
+}
 // ---------- IL MIO CONTO: ricariche, giocate e risultato mese per mese
 const nomeMese = (ym) => { const d = new Date(ym + "-15T12:00:00"); const t = d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1); };
 const spostaMese = (ym, n) => { const d = new Date(ym + "-15T12:00:00"); d.setMonth(d.getMonth() + n); return d.toISOString().slice(0, 7); };
@@ -616,6 +634,7 @@ async function vistaConto() {
     }
     h += `<h2>Movimenti</h2><div class="card"><div class="grid2" style="align-items:center"><input class="linea" id="mImp" inputmode="decimal" placeholder="Importo in €"><div style="display:flex;gap:6px"><button class="btn" id="mDep" style="flex:1">Ricarica</button><button class="btn" id="mPre" style="flex:1">Prelievo</button></div></div>` +
       (mm.length ? mm.map((m) => `<div class="riga rg"><span>${m.tipo === "dep" ? "Ricarica" : "Prelievo"} · ${esc(nomeGiorno(String(m.data).slice(0, 10)))}</span><span><b style="color:${m.tipo === "dep" ? GR : AM}">${m.tipo === "dep" ? "+" : "-"}${euro(m.importo)}</b> <button class="chipbtn" data-dm="${esc(m.id)}" style="padding:2px 9px;font-size:11px">Togli</button></span></div>`).join("") : `<div class="cap" style="margin:8px 0 0">Nessun movimento in questo mese. Scrivi quanto hai caricato sul conto di gioco: il saldo lo calcola l'app.</div>`) + `</div>`;
+    if (chiuse.length >= 2 || mr.some((r) => r.es)) h += meseDettaglio(mr, chiuse, incasso);
     h += `<h2>Cosa hai giocato</h2>` + (mr.length ? perGiornata(mr.map((r) => ({ r })), ({ r }) => `<div class="card" style="padding:10px 12px"><div class="riga" style="align-items:flex-start;gap:10px"><div style="min-width:0"><b>${esc(r.nome)}</b><div class="s">quota ${r.quota} · ${euro(+r.puntata)}${r.esito === 1 ? ` · <b style="color:${GR}">vinta ${euro(incasso(r))}</b>` : r.esito === 0 ? ` · <b style="color:${RD}">persa</b>` : " · in corso"}</div></div></div><div class="s" style="line-height:1.4;margin-top:4px">${esc(r.testo || "")}</div>${dettaglioLegs(r)}</div>`) + `<div class="cap" style="text-align:center"><a href="#/registro" style="color:${OR}">Apri il registro per modificare o togliere una giocata</a></div>` : `<div class="vuoto">Nessuna schedina in questo mese. Quando ne giochi una dall'app, la trovi qui con quota, puntata e risultato.</div>`);
     h += `<div class="cap" style="text-align:center;margin-top:14px"><a href="#/calcolatore" style="color:${OR}"><i class="ti ti-calculator"></i> Calcolatore</a> &nbsp;·&nbsp; <a href="#/impostazioni" style="color:${OR}"><i class="ti ti-settings"></i> Impostazioni</a> &nbsp;·&nbsp; <a href="#/diag" style="color:${OR}"><i class="ti ti-stethoscope"></i> Controllo dati</a></div>`;
     APP.innerHTML = h;
