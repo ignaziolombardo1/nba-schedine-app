@@ -64,9 +64,9 @@ async function vistaMia() {
       });
       return;
     }
-    const q = L.reduce((a, l) => a / Math.max(0.05, l.prob), 1), p = L.reduce((a, l) => a * l.prob, 1), stessa = new Set(L.map((l) => l.g)).size < L.length;
+    const q = L.reduce((a, l) => a / Math.max(0.05, l.prob), 1), p = L.reduce((a, l) => a * l.prob, 1), stessa = new Set(L.map((l) => l.g)).size < L.length, pLeg = (() => { const m = new Map(); for (const l of L) m.set(l.g, [...(m.get(l.g) || []), l.prob]); return [...m.values()].reduce((a, v) => a * (v.length > 1 ? Math.min(...v) : v[0]), 1); })();
     el.innerHTML = L.map((l, i) => `<div class="card cardp"><div style="min-width:0"><div class="s">${esc(l.partita)}${l.mia ? " · scelta da te" : ""}</div><div style="font-weight:500">${esc(l.testo)}</div></div><div style="text-align:right"><div class="v" style="color:${colProb(l.prob)}">${pct(l.prob)}</div><button class="chipbtn" data-rm="${i}" style="padding:2px 9px;font-size:11px">Togli</button></div></div>`).join("") +
-    `<div class="card"><div class="row3"><div class="tile"><b>${(p * 100).toFixed(0)}%</b><span>tutte centrate</span></div><div class="tile"><b>${q.toFixed(2)}</b><span>quota giusta</span></div><div class="tile"><b>${L.length}</b><span>giocate</span></div></div>${stessa ? `<div class="cap" style="margin:8px 0 0;color:${AM}">Ci sono più giocate della stessa partita: la probabilità reale è diversa da quella calcolata.</div>` : ""}${confrontoMia(L, p, D)}
+    `<div class="card"><div class="row3"><div class="tile"><b>${(p * 100).toFixed(0)}%</b><span>tutte centrate</span></div><div class="tile"><b>${q.toFixed(2)}</b><span>quota giusta</span></div><div class="tile"><b>${L.length}</b><span>giocate</span></div></div>${stessa ? `<div class="cap" style="margin:8px 0 0;color:${AM}">Ci sono più giocate della stessa partita: la probabilità reale è diversa da quella calcolata: tra <b>${(pLeg * 100).toFixed(0)}%</b> (giocate molto legate) e <b>${(p * 100).toFixed(0)}%</b> (indipendenti).</div>` : ""}${confrontoMia(L, p, D)}
     <div class="grid2" style="margin-top:10px"><input class="linea" inputmode="decimal" placeholder="Quota offerta (es. 4.50)" id="miaq" style="margin:0"><input class="linea" inputmode="decimal" placeholder="Puntata €" id="miap" value="${impo().puntata}" style="margin:0"></div><div id="miaval"></div>
     <button class="btn" id="miaok" style="margin:6px 0 0"><i class="ti ti-notebook"></i> Salva e segui in diretta</button><div class="grid2" style="gap:8px;margin-top:8px"><button class="btn" id="miacp" style="margin:0"><i class="ti ti-copy"></i> Copia</button><button class="btn" id="miasvuota" style="margin:0">Svuota</button></div></div>`;
     el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { const l = miaLeggi(); l.splice(+b.dataset.rm, 1); ls.set("mia", l); barraMia(); riepilogo(); lista(); });
@@ -77,6 +77,7 @@ async function vistaMia() {
     $("#miaok").onclick = () => {
       const qq = parseFloat(String(mq.value).replace(",", ".")), pu = parseFloat(String($("#miap").value).replace(",", "."));
       if (!(qq > 1) || !(pu > 0)) { $("#miaok").textContent = "Scrivi la quota (maggiore di 1) e la puntata"; return; }
+      if (!controllaBudget(pu)) return;
       const r = ls.get("registro", []); r.unshift({ id: "mia|" + Date.now(), chiave: null, nome: `La mia schedina (${L.length})`, testo: L.map((l) => l.testo).join(" + "), tipo: "Schedina", prob: p, quota: qq, puntata: pu, data: new Date().toISOString().slice(0, 10), esito: null, legs: L });
       ls.set("registro", r); ls.set("mia", []); barraMia(); location.hash = "#/live";
     };

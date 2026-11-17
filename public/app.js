@@ -1,7 +1,7 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "109";
+const VERSIONE = "110";
 // ---------- router
 let timer = null;
 function route(force) {
@@ -10,7 +10,9 @@ function route(force) {
   const attivo = hsh.startsWith("/live") ? "live" : hsh.startsWith("/schedine") ? "schedine" : hsh.startsWith("/combo") || hsh.startsWith("/categoria") || hsh.startsWith("/mia") ? "consigli" : hsh.startsWith("/esiti") || hsh.startsWith("/storico") || hsh.startsWith("/conto") ? "storico" : hsh.startsWith("/diag") || hsh.startsWith("/statistiche") || hsh.startsWith("/registro") || hsh.startsWith("/impostazioni") ? "storico" : "partite";
   document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("on", a.dataset.r === attivo));
   const cat = /^\/categoria\/(\d+)/.exec(hsh), m = /^\/partita\/(\d+)/.exec(hsh), gp = /^\/giocatore\/(\d+)/.exec(hsh);
-  if (hsh.startsWith("/impostazioni")) vistaImpostazioni();
+  const rx = (window.RIDEE || []).find((r) => r[0].test(hsh));
+  if (rx) rx[1](hsh.match(rx[0]));
+  else if (hsh.startsWith("/impostazioni")) vistaImpostazioni();
   else if (hsh.startsWith("/calcolatore")) vistaCalcolatore();
   else if (hsh.startsWith("/registro")) vistaRegistro();
   else if (hsh.startsWith("/conto")) vistaConto();
@@ -68,5 +70,5 @@ window.addEventListener("pagehide", salvaPosizione);
 let ripristinaY = null;
 { const u = ls.get("ult", null); if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/") && u.h && u.h !== "#/") { location.hash = u.h; ripristinaY = u.y; } else if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/")) ripristinaY = u.y; }
 route();
-applicaAspetto(); applicaProfilo(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
+applicaAspetto(); applicaNotte(); applicaProfilo(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
 if (ripristinaY) for (const ms of [500, 1200, 2500]) setTimeout(() => window.scrollTo(0, ripristinaY), ms);

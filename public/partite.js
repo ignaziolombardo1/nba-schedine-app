@@ -24,7 +24,7 @@ function giocataDelGiorno(D) {
   const cand = D.picks.filter((x) => D.partite.find((p) => p.id === x.g && p.stato === "pre")), top = [...(cand.length ? cand : [])].sort((a, b) => b.prob - a.prob)[0];
   const riep = `<div class="riep">${n} ${n === 1 ? "partita" : "partite"}${live ? ` · <span style="color:${OR}">${live} in corso</span>` : ""}${pre ? ` · ${pre} da giocare` : ""}${fin ? ` · ${fin} finite` : ""}</div>`;
   if (!top) return riep;
-  return riep + `<a class="gdg" href="#/partita/${top.g}"><div class="gp"><span class="gt">Giocata del giorno</span><b>${Math.round(top.prob * 100)}%</b></div><div class="gx">${esc(top.testo)}</div><div class="s">${esc(top.partita)}</div><div class="gb"><i style="width:${Math.round(top.prob * 100)}%"></i></div></a>`;
+  return riep + `<a class="gdg" href="#/partita/${top.g}"><div class="gp"><span class="gt">Giocata del giorno</span><b>${Math.round(top.prob * 100)}%</b></div><div class="gx">${esc(top.testo)}</div><div class="s">${esc(top.partita)}</div><div class="gb"><i style="width:${Math.round(top.prob * 100)}%"></i></div></a>` + btnSchedinaGiorno(D);
 }
 function hero(D) {
   const n = D.partite.length; if (!n) return "";

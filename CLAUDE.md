@@ -53,3 +53,5 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.
+
+- v110 (idee 1/6, parte 1): nuovo file `idee1.js` (in index.html e SHELL di sw.js; rotte extra via `window.RIDEE`, controllate all'inizio di `route()`): pagella del modello come grafico (`graficoPagella`, in Statistiche), «minuti a rischio» sulle giocate (`rischioMin`), pulsante «Schedina del giorno» (`btnSchedinaGiorno`, 3 giocate di partite diverse), controllo del limite di perdita prima di salvare (`controllaBudget`), tema «Notte» (`html.notte`, Impostazioni › Aspetto), stima finale e intervallo di probabilità unita per giocate correlate in `vistaMia`; stima finale nelle «Le mie giocate» del Live (`avanzamentoLeg().proj`).

@@ -75,7 +75,8 @@ function avanzamentoLeg(l, D) {
   else { const g = p.giocatori.find((x) => (l.pid && x.pid === l.pid) || (l.nome && x.nome === l.nome)); if (!g) return { st: "nd", testo: "giocatore non ancora nel tabellino", p }; cur = g[l.k]; }
   const over = l.dir !== "under", sg = l.soglia;
   const st = over ? (cur > sg ? "ok" : "in") : (cur > sg ? "no" : "in");
-  return { st, cur, soglia: sg, testo: `${cur} / ${sg}`, p };
+  const proj = p.f >= 0.2 && cur != null && p.stato === "in" ? Math.round(cur / p.f) : null; // proiezione: stesso ritmo fino al fischio finale
+  return { st, cur, soglia: sg, testo: `${cur} / ${sg}`, p, proj };
 }
 function mieGiocateLive(D) {
   const oggi = new Date().toISOString().slice(0, 10), R = ls.get("registro", []).filter((r) => r.legs && r.legs.length && (r.esito == null || String(r.data) >= oggi || r.esito != null && String(r.data) >= new Date(Date.now() - 86400000).toISOString().slice(0, 10)));
@@ -84,7 +85,7 @@ function mieGiocateLive(D) {
   return `<div class="sub"><i class="ti ti-ticket" style="color:${OR}"></i> Le mie giocate</div>` + R.map((r) => `<div class="card"><div class="riga"><b>${esc(r.nome)}</b><span class="s">${r.esito === 1 ? "<b style=\"color:" + GR + "\">VINTA</b> · " : r.esito === 0 ? "<b style=\"color:" + RD + "\">PERSA</b> · " : ""}quota ${r.quota} · ${r.puntata} €${r.esito == null ? `<button class="chipbtn" data-delm="${esc(r.id)}" style="padding:2px 9px;font-size:11px;margin-left:6px">Rimuovi</button>` : ""}</span></div>` + (r.esito != null && r.es ? dettaglioLegs(r) : r.legs.map((l) => {
     const a = avanzamentoLeg(l, D), c = col[a.st] || MU, pr = a.soglia > 0 && a.cur != null ? Math.max(0, Math.min(100, (a.cur / a.soglia) * 100)) : 0;
     const ic = a.st === "ok" ? "ti-circle-check-filled" : a.st === "no" ? "ti-circle-x-filled" : "ti-circle-dashed";
-    return `<div style="margin-top:10px"><div class="riga" style="gap:8px"><div style="min-width:0;flex:1"><i class="ti ${ic}" style="color:${c}"></i> ${esc(l.testo)}</div><b style="color:${c};white-space:nowrap">${esc(a.testo)}</b></div>${a.soglia > 0 ? `<div class="bar" style="height:4px;margin-top:4px"><div style="width:${pr}%;background:${c}"></div></div>` : ""}${a.p ? `<div class="s" style="margin-top:2px">${esc(a.p.dettaglio || "")}</div>` : ""}</div>`;
+    return `<div style="margin-top:10px"><div class="riga" style="gap:8px"><div style="min-width:0;flex:1"><i class="ti ${ic}" style="color:${c}"></i> ${esc(l.testo)}</div><b style="color:${c};white-space:nowrap">${esc(a.testo)}</b></div>${a.soglia > 0 ? `<div class="bar" style="height:4px;margin-top:4px"><div style="width:${pr}%;background:${c}"></div></div>` : ""}${a.p ? `<div class="s" style="margin-top:2px">${esc(a.p.dettaglio || "")}${a.proj != null && a.soglia > 0 ? ` · stima finale <b style="color:${(a.proj > a.soglia) === (l.dir !== "under") ? GR : AM}">${a.proj}</b> ${(a.proj > a.soglia) === (l.dir !== "under") ? "(sopra la linea)" : "(sotto la linea)"}` : ""}</div>` : ""}</div>`;
   }).join("")) + `</div>`).join("");
 }
 const bloccoLive = {};

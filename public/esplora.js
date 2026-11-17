@@ -4,7 +4,8 @@
 function applicaAspetto() {
   const a = ls.get("aspetto", { tema: "scuro", testo: "normale" }), chiaro = a.tema === "chiaro" || (a.tema === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
   document.documentElement.classList.toggle("chiaro", !!chiaro);
-  const m = document.querySelector("main"); if (m) m.style.zoom = a.testo === "grande" ? "1.12" : a.testo === "molto" ? "1.25" : "";
+  const m = document.querySelector("main"); if (m) m.style.zoom = a.testo === "grande" ? "1.12" : a.testo === "molto" ? "1.25" : a.tema === "notte" ? "1.12" : "";
+  if (typeof applicaNotte === "function") applicaNotte();
 }
 function aggiornaBadge() {
   try { const n = ls.get("registro", []).filter((r) => r.esito == null).length; if (navigator.setAppBadge) { if (n > 0) navigator.setAppBadge(n); else navigator.clearAppBadge && navigator.clearAppBadge(); } } catch {}
