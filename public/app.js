@@ -1,7 +1,7 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "103";
+const VERSIONE = "104";
 // ---------- router
 let timer = null;
 function route(force) {
@@ -20,6 +20,7 @@ function route(force) {
   else if (hsh.startsWith("/news")) vistaNews(null);
   else if (/^\/s\/[a-z0-9]+$/.test(hsh)) vistaCondivisa(hsh.split("/")[2]);
   else if (hsh.startsWith("/statistiche")) vistaStatistiche();
+  else if (hsh.startsWith("/profilo")) vistaProfilo();
   else if (hsh.startsWith("/forma")) vistaForma();
   else if (hsh.startsWith("/seguiti")) vistaSeguiti();
   else if (hsh.startsWith("/stasera")) vistaStasera();
@@ -67,5 +68,5 @@ window.addEventListener("pagehide", salvaPosizione);
 let ripristinaY = null;
 { const u = ls.get("ult", null); if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/") && u.h && u.h !== "#/") { location.hash = u.h; ripristinaY = u.y; } else if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/")) ripristinaY = u.y; }
 route();
-applicaAspetto(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
+applicaAspetto(); applicaProfilo(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
 if (ripristinaY) for (const ms of [500, 1200, 2500]) setTimeout(() => window.scrollTo(0, ripristinaY), ms);

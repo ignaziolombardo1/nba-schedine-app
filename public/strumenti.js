@@ -80,3 +80,39 @@ function bloccoMieGiornata() {
   const ch = R.filter((r) => r.esito === 0 || r.esito === 1), saldo = ch.reduce((t, r) => t + (r.esito === 1 ? (r.puntata || 0) * ((r.quota || 1) - 1) : -(r.puntata || 0)), 0), ok = ch.filter((r) => r.esito === 1).length;
   return `<h2>Le tue giocate</h2><div class="card" style="padding:4px 12px">` + R.map((r, i) => `<div class="riga rg" style="${i ? "" : "border-top:0"}"><div style="min-width:0"><b>${esc(r.nome || "Schedina")}</b><div class="s">quota ${r.quota} · ${r.puntata} €</div></div><b style="color:${r.esito === 1 ? GR : r.esito === 0 ? RD : "var(--mut)"}">${r.esito === 1 ? "Vinta" : r.esito === 0 ? "Persa" : "In attesa"}</b></div>`).join("") + `<div class="riga rg"><b>${ch.length ? `${ok} su ${ch.length} prese` : "Nessuna ancora chiusa"}</b><b style="color:${saldo >= 0 ? GR : RD}">${ch.length ? eur(saldo) : ""}</b></div></div>`;
 }
+
+// ---------- profilo personale: nome, squadra del cuore (colore dell'app), preferiti e riepilogo
+function applicaProfilo() {
+  const pf = ls.get("profilo", null); let c = pf && pf.col;
+  if (!c || !/^#[0-9a-f]{6}$/i.test(c)) { OR = "#ff8a2a"; document.documentElement.style.removeProperty("--or"); return; }
+  let [r, g, b] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255; // colori scuri si schiariscono, per restare leggibili sullo sfondo
+  if (lum < 0.45) { const k = (0.55 - lum) / (1 - lum); r = Math.round(r + (255 - r) * k); g = Math.round(g + (255 - g) * k); b = Math.round(b + (255 - b) * k); }
+  OR = "#" + [r, g, b].map((v) => Math.min(255, v).toString(16).padStart(2, "0")).join("");
+  document.documentElement.style.setProperty("--or", OR);
+}
+async function vistaProfilo() {
+  APP.innerHTML = topBar() + skel();
+  let D = null; try { D = await dati(); } catch {}
+  const pf = ls.get("profilo", {}), P = pref(), reg = ls.get("registro", []).filter((r) => r.esito === 0 || r.esito === 1);
+  const vinte = reg.filter((r) => r.esito === 1), perc = reg.length ? Math.round(vinte.length / reg.length * 100) : null;
+  const migl = vinte.slice().sort((a, b) => (b.quota || 0) - (a.quota || 0))[0], mese = nettoMese();
+  const sqs = D && D.squadre ? Object.keys(D.squadre).sort((a, b) => nomeSq(D.squadre, a).localeCompare(nomeSq(D.squadre, b), "it")) : [];
+  let h = topBar() + `<div class="pfh"><div class="av">${pf.sq ? logo(pf.sq, 56) : `<i class="ti ti-user"></i>`}</div><input id="pfn" maxlength="24" placeholder="Il tuo nome" value="${esc(pf.nome || "")}" aria-label="Il tuo nome"><div class="s">${pf.sq ? "Tifi " + esc(nomeSq(D && D.squadre, pf.sq)) : "Scegli la squadra del cuore: colora l'app"}</div></div>`;
+  h += `<h2>Squadra del cuore</h2><div class="card"><div class="cuore">${sqs.length ? sqs.map((ab) => `<button data-cuore="${esc(ab)}" class="${pf.sq === ab ? "on" : ""}" aria-label="${esc(nomeSq(D.squadre, ab))}">${logo(ab, 40)}</button>`).join("") : `<div class="s" style="grid-column:1/-1">Elenco squadre non disponibile ora.</div>`}</div>${pf.sq ? `<button class="chipbtn" id="cuoreNo" style="margin-top:10px">Togli la squadra del cuore</button>` : ""}</div>`;
+  h += `<h2>I miei numeri</h2><div class="pfk"><div class="card"><div class="s">Saldo del mese</div><b style="color:${mese >= 0 ? GR : RD}">${typeof eur === "function" ? eur(mese) : mese.toFixed(2)}</b></div><div class="card"><div class="s">Giocate centrate</div><b>${perc == null ? "–" : perc + "%"}</b><div class="s">${vinte.length} su ${reg.length}</div></div></div>`;
+  if (migl) h += `<div class="card" style="margin-top:8px"><div class="s">Giocata migliore</div><b>${esc(migl.nome || migl.testo || "Schedina")}</b><div class="s">quota ${(+migl.quota || 0).toFixed(2).replace(".", ",")} · ${esc(String(migl.data || ""))}</div></div>`;
+  h += `<h2>I miei preferiti</h2>`;
+  if (!P.sq.length && !P.pl.length) h += `<div class="vuoto">Nessun preferito. Tocca la ☆ accanto a una squadra o a un giocatore per seguirlo.</div>`;
+  else {
+    if (P.sq.length) h += `<div class="card">` + P.sq.map((ab, i) => `<div class="riga rg" style="${i ? "" : "border-top:0"}"><a class="lg" href="#/squadra/${esc(ab)}" style="color:inherit">${logo(ab, 26)}<b>${esc(nomeSq(D && D.squadre, ab))}</b></a>${stella("sq", ab)}</div>`).join("") + `</div>`;
+    if (P.pl.length) h += `<div class="card">` + P.pl.map((x, i) => `<div class="riga rg" style="${i ? "" : "border-top:0"}"><a class="lg" href="#/giocatore/${esc(x.pid)}" style="color:inherit">${foto(x.pid, 30)}<div><b>${esc(x.nome)}</b><div class="s">${esc(nomeSq(D && D.squadre, x.sq))}</div></div></a>${stella("pl", x.pid, x.nome, x.sq)}</div>`).join("") + `</div>`;
+    if (P.gm.length) h += `<div class="cap">Hai ${P.gm.length} ${P.gm.length === 1 ? "partita" : "partite"} con la campanella.</div>`;
+  }
+  h += `<a class="chipbtn" href="#/seguiti" style="display:inline-block;margin:6px 6px 0 0">Forma e infortuni dei preferiti</a><a class="chipbtn" href="#/cerca" style="display:inline-block;margin-top:6px">Cerca un giocatore</a>`;
+  h += `<h2>Altro</h2><div class="card"><a class="riga rg" href="#/impostazioni" style="color:inherit;border-top:0"><span><i class="ti ti-settings"></i> Impostazioni, notifiche e codice di sincronizzazione</span><i class="ti ti-chevron-right"></i></a><a class="riga rg" href="#/statistiche" style="color:inherit"><span><i class="ti ti-chart-bar"></i> Statistiche del registro</span><i class="ti ti-chevron-right"></i></a><a class="riga rg" href="#/diag" style="color:inherit"><span><i class="ti ti-stethoscope"></i> Controllo dei dati · versione ${VERSIONE}</span><i class="ti ti-chevron-right"></i></a></div>`;
+  APP.innerHTML = h;
+  const n = document.getElementById("pfn"); if (n) n.onchange = () => { const v = ls.get("profilo", {}); v.nome = n.value.trim(); ls.set("profilo", v); };
+  APP.querySelectorAll("[data-cuore]").forEach((b) => b.onclick = () => { const ab = b.dataset.cuore, v = ls.get("profilo", {}); v.sq = ab; v.col = D.squadre[ab].c; ls.set("profilo", v); applicaProfilo(); vistaProfilo(); });
+  const no = document.getElementById("cuoreNo"); if (no) no.onclick = () => { const v = ls.get("profilo", {}); delete v.sq; delete v.col; ls.set("profilo", v); applicaProfilo(); vistaProfilo(); };
+}

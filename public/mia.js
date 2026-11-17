@@ -108,8 +108,9 @@ function rigaPick(D, x) {
   return `<div class="pick">${anello(x.prob * 100, colProb(x.prob), 48)}${vis}<div style="min-width:0"><div class="t" style="color:${colEsito(x, "")}">${segnoEsito(x)}${esc(x.testo)}</div><div class="s">${esc(x.partita)}${x.dubbio ? ` · <span style="color:${AM}">in dubbio (gioca col ${Math.round(x.dubbio * 100)}%)</span>` : ""}</div></div>${addBtn(x)}</div>`;
 }
 function topBar(D) {
-  const ora = D && D.aggiornato ? new Date(D.aggiornato).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
-  return `<div class="top"><img class="logo" src="/icon-192.png" alt=""><div><div class="nome">NBA Schedine</div><div class="s">Studio e consigli sul basket${ora ? " · agg. " + ora : ""}</div></div></div>`;
+  const ora = D && D.aggiornato ? new Date(D.aggiornato).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "";
+  const pf = ls.get("profilo", null), av = pf && pf.sq ? logo(pf.sq, 24) : `<i class="ti ti-user"></i>`;
+  return `<div class="top"><img class="logo" src="/icon-192.png" alt=""><div class="tt"><div class="nome">NBA Schedine</div>${ora ? `<div class="s">agg. ${ora}</div>` : ""}</div><a class="avt" href="#/profilo" aria-label="Il mio profilo">${av}</a></div>`;
 }
 const GS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"], MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const fmtET = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" });

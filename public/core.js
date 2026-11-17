@@ -2,7 +2,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const APP = $("#app");
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const OR = "#ff8a2a", GR = "#3ddc84", RD = "#ff5d5d", AM = "#ffb066", MU = "#8b93a5";
+let OR = "#ff8a2a"; const GR = "#3ddc84", RD = "#ff5d5d", AM = "#ffb066", MU = "#8b93a5";
 const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try {
   if (k === "registro" || k === "mov") { // ricorda cosa è stato tolto, così la sincronizzazione non lo rimette
     const ids = new Set((v || []).map((r) => String(r.id))), dl = ls.get("delIds", []); for (const r of ls.get(k, [])) if (r && r.id != null && !ids.has(String(r.id))) dl.push(String(r.id));
