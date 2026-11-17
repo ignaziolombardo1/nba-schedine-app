@@ -45,5 +45,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 - v106: sigla della squadra in contorno dietro il logo nelle schede Home (`.wmk`, colore `--wc`); pannello «Perché questa linea?» (`perche(x)` in strumenti.js) sotto le giocate dello studio partita, alimentato da `det` (`dettaglio()` in modello.js: media stagione, ultime partite, minuti, difesa, compagni fuori, bookmaker, storico, scala delle linee). Giocate vecchie senza `det` mostrano il solo `motivo`.
 
+- v107: nelle schede Home sparisce il testo della sigla accanto al logo (resta solo la sigla in contorno dietro e il badge 1/2); logo a 42 px.
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

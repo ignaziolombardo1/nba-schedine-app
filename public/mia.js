@@ -188,7 +188,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
   if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, "inherit")}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
-    const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 34)}<div class="tn"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b>${esc(ab)}</div></div>`;
+    const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 42)}<div class="tn" title="${esc(ab)}"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b></div></div>`;
     const mezzo = p.stato === "pre"
       ? `<div class="cm"><span class="w">${pct(r.pw)}</span><i>-</i><span class="w">${pct(1 - r.pw)}</span></div>`
       : `<div class="cm"><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="c">${p.ptCasa ?? 0}</span><i>-</i><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="t">${p.ptTr ?? 0}</span></div>`;
