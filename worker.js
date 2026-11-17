@@ -375,9 +375,20 @@ async function cronAvvisi(env) {
     oggi.i ||= {}; oggi.f ||= {};
     for (const p of g.partite) {
       if (!subs.some((sb) => segue(sb, p))) continue;
-      if (p.stato === "pre") { // promemoria 20-40 minuti prima dell'inizio per le partite che segui
-        const m = (Date.parse(p.iso) - ora) / 60000; oggi.p ||= {};
+      if (p.stato === "pre") { // promemoria 20-40 minuti prima dell'inizio e quintetti ufficiali, per le partite che segui
+        const m = (Date.parse(p.iso) - ora) / 60000; oggi.p ||= {}; oggi.q ||= {};
         if (m >= 20 && m <= 40 && !oggi.p[p.id]) { await accodaPush(env, { cat: "pr", titolo: `⏰ Tra poco ${p.casa} - ${p.trasf}`, testo: `Inizia alle ${p.ora.slice(-5)}. Tocca per vedere stime e giocate.`, url: `/#/partita/${p.id}` }, (sb) => sb.pref && segue(sb, p)); oggi.p[p.id] = 1; fatto.push("promemoria " + p.id); }
+        if (m > 0 && m <= 90 && !oggi.q[p.id]) { // quando ESPN pubblica i quintetti: una notifica per partita, con i giocatori che segui in evidenza
+          const Q = await caricaQuintetti(p.id, 60).catch(() => null);
+          if (Q && Q.pubblicato) {
+            const riga = (ab) => `${ab}: ${(Q.squadre[ab] || []).join(", ")}`;
+            for (const sb of subs.filter((x) => segue(x, p))) {
+              const mie = (sb.pref.pl || []).filter((x) => x.sq === p.casa || x.sq === p.trasf).map((x) => (Q.titolari[x.pid] ? `✅ ${x.nome} titolare` : Q.presenti[x.pid] ? `⚠️ ${x.nome} parte dalla panchina` : `❓ ${x.nome} non è nell'elenco`));
+              await accodaPush(env, { cat: "pr", titolo: `📋 Quintetti ${p.casa} - ${p.trasf}`, testo: [...mie, riga(p.casa), riga(p.trasf)].join("\n").slice(0, 300), url: `/#/partita/${p.id}` }, (x) => x.endpoint === sb.endpoint);
+            }
+            oggi.q[p.id] = 1; fatto.push("quintetti " + p.id);
+          }
+        }
       }
       if (p.stato === "in" && !oggi.i[p.id]) { await accodaPush(env, { cat: "pr", titolo: `🏀 ${p.casa} - ${p.trasf}`, testo: "La partita è iniziata. Tocca per seguirla in diretta.", url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.i[p.id] = 1; fatto.push("inizio " + p.id); }
       if (p.stato === "in") {

@@ -379,10 +379,11 @@ export async function caricaNews(sigla = null, quante = 14) {
 // Quintetti ufficiali di una partita: ESPN li pubblica poco prima dell'inizio (giocatori con starter=true nel boxscore).
 // Restituisce { pubblicato, titolari: {pid: true}, presenti: {pid: true} } (presenti = tutti i giocatori elencati).
 export async function caricaQuintetti(eventId, ttl = 60) {
-  const d = await get(`${ESPN}/summary`, { event: eventId }, ttl), out = { pubblicato: false, titolari: {}, presenti: {} };
+  const d = await get(`${ESPN}/summary`, { event: eventId }, ttl), out = { pubblicato: false, titolari: {}, presenti: {}, squadre: {} };
   for (const team of (d.boxscore || {}).players || []) for (const blocco of team.statistics || []) for (const a of blocco.athletes || []) {
     const pid = (a.athlete || {}).id ? String(a.athlete.id) : null; if (!pid) continue;
-    out.presenti[pid] = true; if (a.starter) { out.titolari[pid] = true; out.pubblicato = true; }
+    out.presenti[pid] = true;
+    if (a.starter) { out.titolari[pid] = true; out.pubblicato = true; const ab = (team.team || {}).abbreviation; if (ab) (out.squadre[ab] ||= []).push(a.athlete.lastName || String(a.athlete.displayName || "").split(" ").pop()); }
   }
   return out;
 }
