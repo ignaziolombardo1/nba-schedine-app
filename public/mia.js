@@ -83,10 +83,20 @@ document.addEventListener("click", async (e) => {
   if (i >= 0) L.splice(i, 1); else L.push(l);
   ls.set("mia", L); b.classList.toggle("on", i < 0); b.textContent = i < 0 ? "✓" : "+"; barraMia(); if (location.hash.startsWith("#/mia") && window.__miaAgg) window.__miaAgg();
 }, true);
-function cardPick(x) { return `<div class="card cardp" style="flex-wrap:wrap"><div style="min-width:0"><div class="s">${esc(x.partita)} · ${esc(x.tipo)}</div><div style="font-weight:500">${esc(x.testo)}${x.dubbio ? ` <span class="s" style="color:${AM}">· in dubbio ${Math.round(x.dubbio * 100)}%</span>` : ""}</div></div><div><div class="v" style="color:${colProb(x.prob)}">${pct(x.prob)}</div><div class="e">stima ${esc(x.stima)}</div></div>${addBtn(x)}<div class="pbar"><i style="width:${Math.round(x.prob * 100)}%;background:${colProb(x.prob)}"></i></div></div>`; }
+// esito reale di una giocata sulle squadre (totale, punti squadra, vincente) quando la partita è finita: 1 centrata, 0 sbagliata, null altrimenti
+function esitoPick(x) {
+  const D = window.__D, p = D && D.partite && D.partite.find((q) => q.id === x.g); if (!p || p.stato !== "post") return null;
+  const l = legDa(x), c = p.ptCasa ?? 0, t = p.ptTr ?? 0;
+  let cur; if (l.k === "tot") cur = c + t; else if (l.k === "sq") cur = l.sq === p.casa ? c : t; else if (l.k === "win") { const d = l.sq === p.casa ? c - t : t - c; return d > 0 ? 1 : 0; } else return null;
+  if (l.soglia == null || cur === l.soglia) return null;
+  return (cur > l.soglia) === (l.dir !== "under") ? 1 : 0;
+}
+const colEsito = (x, def) => { const e = esitoPick(x); return e === 1 ? GR : e === 0 ? RD : def; };
+const segnoEsito = (x) => { const e = esitoPick(x); return e === 1 ? "✓ " : e === 0 ? "✗ " : ""; };
+function cardPick(x) { return `<div class="card cardp" style="flex-wrap:wrap"><div style="min-width:0"><div class="s">${esc(x.partita)} · ${esc(x.tipo)}</div><div style="font-weight:500">${esc(x.testo)}${x.dubbio ? ` <span class="s" style="color:${AM}">· in dubbio ${Math.round(x.dubbio * 100)}%</span>` : ""}</div></div><div><div class="v" style="color:${colEsito(x, colProb(x.prob))}">${segnoEsito(x)}${pct(x.prob)}</div><div class="e">stima ${esc(x.stima)}</div></div>${addBtn(x)}<div class="pbar"><i style="width:${Math.round(x.prob * 100)}%;background:${colProb(x.prob)}"></i></div></div>`; }
 function rigaPick(D, x) {
   const vis = x.pid ? foto(x.pid, 34) : x.squadra ? logo(x.squadra, 30) : `<span class="ph" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:${OR}"></i></span>`;
-  return `<div class="pick">${anello(x.prob * 100, colProb(x.prob), 48)}${vis}<div style="min-width:0"><div class="t">${esc(x.testo)}</div><div class="s">${esc(x.partita)}${x.dubbio ? ` · <span style="color:${AM}">in dubbio (gioca col ${Math.round(x.dubbio * 100)}%)</span>` : ""}</div></div>${addBtn(x)}</div>`;
+  return `<div class="pick">${anello(x.prob * 100, colProb(x.prob), 48)}${vis}<div style="min-width:0"><div class="t" style="color:${colEsito(x, "")}">${segnoEsito(x)}${esc(x.testo)}</div><div class="s">${esc(x.partita)}${x.dubbio ? ` · <span style="color:${AM}">in dubbio (gioca col ${Math.round(x.dubbio * 100)}%)</span>` : ""}</div></div>${addBtn(x)}</div>`;
 }
 function topBar(D) {
   const ora = D && D.aggiornato ? new Date(D.aggiornato).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
@@ -154,7 +164,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
     else if (p.stato === "in" && reale > lin) chips = `<span class="chip" style="color:${GR};font-weight:600">Totale ${reale} ▲ over ${Number(lin).toFixed(lin % 1 ? 1 : 0)}</span>`;
     else chips = `<span class="chip">Totale ${r.totale.toFixed(0)}</span>`;
   }
-  if (topPick) chips += `<span class="chip" style="color:${GR}">${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
+  if (topPick) chips += `<span class="chip" style="color:${colEsito(topPick, GR)}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
     const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 34)}<div class="tn"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b>${esc(ab)}${stella("sq", ab)}</div></div>`;

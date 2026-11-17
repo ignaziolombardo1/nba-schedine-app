@@ -44,7 +44,8 @@ async function api(path, ttl = 0) {
 }
 const qs = () => "d=" + (typeof giorno === "number" ? etGiorno(giorno).ymd : giorno);
 // se i dati nuovi non arrivano si mostrano gli ultimi salvati (con l'avviso) e si riprova da soli
-const dati = async (force) => {
+const dati = async (force) => { const D = await datiBase(force); window.__D = D; return D; };
+const datiBase = async (force) => {
   if (force) delete cache["/api/giorno?" + qs()];
   try { return applicaImp(await api("/api/giorno?" + qs(), 40000)); }
   catch (e) { const k = "/api/giorno?" + qs(), o = (() => { try { return JSON.parse(localStorage.getItem("D|" + k) || "null"); } catch { return null; } })(); if (o && o.d && Date.now() - o.t < 36 * 3600e3) return applicaImp({ ...o.d, erroreAgg: String(e.message || e), salvatoAlle: o.t }); throw e; }
