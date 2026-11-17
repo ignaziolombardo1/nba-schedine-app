@@ -45,6 +45,7 @@ async function vistaCalendario() {
       return `<div class="card riga" style="padding:9px 12px"><a class="lg" href="#/squadra/${esc(x.casa)}" style="color:inherit">${logo(x.casa, 26)}<b>${esc(x.casa)}${pm.has(x.casa) ? " ★" : ""}</b></a><b style="font-size:17px;color:${x.stato === "in" ? RD : "inherit"}">${mid}${x.stato === "in" ? ' <span class="s" style="color:' + RD + '">live</span>' : ""}</b><a class="lg" href="#/squadra/${esc(x.trasf)}" style="color:inherit"><b>${esc(x.trasf)}${pm.has(x.trasf) ? " ★" : ""}</b>${logo(x.trasf, 26)}</a></div>`;
     }).join("");
   }
+  h += `<button class="btn" id="icsBtn"><i class="ti ti-calendar-plus"></i> Aggiungi al calendario del telefono le partite delle mie squadre</button>`;
   h += `<div class="cap">Orari in ora italiana. A sinistra la squadra di casa, a destra la trasferta.</div>`;
   APP.innerHTML = h;
   const oggi = () => { const d = new Date(); return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(d).replaceAll("-", ""); };

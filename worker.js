@@ -723,6 +723,21 @@ export default {
         try { const ok = (l) => /^\d+$/.test(String(l.g)) && ["pts", "reb", "ast", "tot", "sq", "win"].includes(l.k), es = await valutaGiocate(S.legs.filter(ok), {}); let i = 0; S.legs = S.legs.map((l) => (ok(l) ? { ...l, esito: es[i].esito, cur: es[i++].cur } : l)); } catch {}
         return J(S, 60);
       }
+      if (p === "/api/gruppo") { // classifica privata e sfide tra amici: riga _gr_<codice gruppo>, membri riconosciuti da un id corto (mai il codice di sincronizzazione)
+        if (!dbOk(env)) return ERR("serve Supabase", 503);
+        const gr = (url.searchParams.get("gr") || "").toLowerCase(); let b = null;
+        if (req.method === "POST") { b = await req.json(); }
+        const g = String((b && b.gr) || gr).toLowerCase(); if (!/^[a-z0-9]{4,16}$/.test(g)) return ERR("codice gruppo non valido", 400);
+        const cut = (x, n) => String(x ?? "").slice(0, n), S = (await rigaForma(env, "_gr_" + g)) || { m: {}, p: {}, r: {} };
+        if (b && /^[a-f0-9]{8}$/.test(String(b.id))) {
+          if (!S.m[b.id] && Object.keys(S.m).length >= 12) return ERR("gruppo pieno (massimo 12)", 400);
+          const st = b.stats || {}; S.m[b.id] = { n: cut(b.nome, 20) || "Giocatore", saldo: Math.round((+st.saldo || 0) * 100) / 100, perc: Math.round(+st.perc || 0), n_: Math.round(+st.n || 0), serie: Math.round(+st.serie || 0), t: new Date().toISOString() };
+          if (b.pron && /^\d+$/.test(String(b.pron.g)) && /^[A-Za-z]{2,4}$/.test(String(b.pron.s))) { const pr = (S.p[b.pron.g] ||= { y: cut(b.pron.y, 8), s: {} }); pr.s[b.id] = String(b.pron.s).toUpperCase(); const k = Object.keys(S.p); if (k.length > 40) delete S.p[k[0]]; }
+          if (b.ris && /^\d+$/.test(String(b.ris.g)) && S.p[b.ris.g] && /^[A-Za-z]{2,4}$/.test(String(b.ris.v))) S.r[b.ris.g] = String(b.ris.v).toUpperCase();
+          await salvaRigaForma(env, "_gr_" + g, S);
+        } else if (b) return ERR("id non valido", 400);
+        return J(S, 0);
+      }
       if (p === "/api/sync" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J(await sincronizza(env, await req.json()), 0); }
       if (p === "/api/push-pref" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ ok: await salvaPrefPush(env, await req.json()) }); }
       if (p === "/api/infortunati") {
@@ -736,6 +751,10 @@ export default {
       if (p === "/api/news") {
         const sg = (url.searchParams.get("s") || "").toUpperCase(); if (sg && !/^[A-Z]{2,4}$/.test(sg)) return ERR("sigla non valida", 400);
         const n = await traduciTitoli(env, await caricaNews(sg || null)); return J({ s: sg || null, news: n }, 600);
+      }
+      if (p === "/api/leader") { // giocatori con la produzione più alta (indice = punti + 0.7 rimbalzi + 0.9 assist a partita)
+        const st = await caricaStatistiche(), l = st.players.filter((x) => x.min >= 25).map((x) => ({ nome: x.nome, pid: x.pid, sq: x.sq, pts: x.pts, reb: x.reb, ast: x.ast, ind: Math.round((x.pts + 0.7 * x.reb + 0.9 * x.ast) * 10) / 10 })).sort((a, b) => b.ind - a.ind).slice(0, 15), sq = {};
+        for (const x of l) sq[x.sq] = info(x.sq); return J({ giocatori: l, squadre: sq }, 1800);
       }
       if (p === "/api/classifica") { const c = await caricaClassifica(), sq = {}; for (const k of ["Est", "Ovest"]) for (const x of c[k]) sq[x.ab] = info(x.ab); return J({ ...c, squadre: sq }, 900); }
       if (p === "/api/calendario") { const da = dp && /^\d{8}$/.test(dp) ? dp : romaYMD(Date.now()), giorni = await caricaCalendario(da), sq = {}; for (const g of giorni) for (const x of g.partite) { sq[x.casa] = info(x.casa); sq[x.trasf] = info(x.trasf); } return J({ da, giorni, squadre: sq }, 600); }
