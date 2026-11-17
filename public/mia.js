@@ -187,6 +187,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
   }
   if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, "inherit")}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
+  chips += chipContesto(D, p);
   if (cliccabile) {
     const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 42)}<div class="tn" title="${esc(ab)}"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b></div></div>`;
     const mezzo = p.stato === "pre"

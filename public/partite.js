@@ -130,7 +130,7 @@ function disegnaPartite(D, conPoll, daCache) {
   let h = topBar(D) + rigaEsplora() + giorniChips();
   if (!D.partite.length) h += `<div class="vuoto">Nessuna partita trovata per questo giorno. Prova un altro giorno.</div>`;
   h += avvisiDati(D, daCache);
-  h += bannerErrore(D) + avvisoBudget() + riepilogoAperte(D) + giocataDelGiorno(D);
+  h += bannerErrore(D) + avvisoBudget() + bannerRadar(D) + riepilogoAperte(D) + giocataDelGiorno(D);
   { const m = confrontoMercato(D); if (m) h += `<details class="dt"><summary>Confronto con i bookmaker</summary>${m}</details>`; }
   if (D.partite.length) h += riquadroPreferiti(D);
   h += `<div id="hnews"></div>`;

@@ -12,7 +12,7 @@ function aggiornaBadge() {
 }
 
 // ---------- ESPLORA: classifica, calendario, squadra, ricerca giocatori
-const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["w", "seguiti", "Seguiti"], ["n", "news", "News"], ["f", "forma", "Forma"], ["i", "infortunati", "Infortunati"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
+const segEsplora = (att) => `<div class="seg">${[["s", "stasera", "Stasera"], ["w", "seguiti", "Seguiti"], ["n", "news", "News"], ["f", "forma", "Forma"], ["i", "infortunati", "Infortunati"], ["c", "classifica", "Classifica"], ["g", "cerca", "Giocatori"], ["v", "valore", "Valore"], ["q", "chiedi", "Chiedi"]].map(([k, h, n]) => `<a href="#/${h}"${att === k ? ' class="on"' : ""}>${n}</a>`).join("")}</div>`;
 const rigaEsplora = () => segEsplora(null);
 const ymdData = (ymd) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8), 12));
 const ymdPiu = (ymd, n) => ymdData(ymd) && new Date(ymdData(ymd).getTime() + n * 86400000).toISOString().slice(0, 10).replaceAll("-", "");
