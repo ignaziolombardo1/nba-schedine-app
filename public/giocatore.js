@@ -10,6 +10,8 @@ async function vistaGiocatore(pid) {
   if (!x) { await schedaGiocatoreLibero(pid, back); return; }
   const avv = x.sq === p.casa ? p.trasf : p.casa, dub = x.inf === "dubbio" ? `<span class="pill" style="color:${AM};margin-left:6px">Dubbio</span>` : "";
   let h = back + `<div class="card gm" style="--ca:${T(D, x.sq).c};--cb:transparent"><div class="lg">${foto(x.pid, 64)}<div style="min-width:0"><div class="nome" style="font-size:26px">${esc(x.nome)}${stella("pl", x.pid, x.nome, x.sq)}${dub}</div><div class="s">${logo(x.sq, 16)} ${esc(T(D, x.sq).n)} · contro ${esc(T(D, avv).b)} · ${esc(p.ora)}</div><div class="s">${Math.round(x.min)} minuti attesi${x.conForma ? " · con forma recente" : " · solo media stagione"}</div></div></div>${x.assenze ? `<div class="s" style="margin-top:8px;color:${AM}">Assenti in squadra: ${esc(x.assenze.join(", "))}. Una parte dei loro numeri passa a questo giocatore.</div>` : ""}</div>`;
+  h += `<div id="ult5"><h2>Ultime 5 partite</h2><div class="skel"></div></div>`;
+  api("/api/giocatore?pid=" + encodeURIComponent(pid), 600000).then((S) => { const el = document.getElementById("ult5"); if (el) el.outerHTML = `<div id="ult5">${ultime5(S)}</div>`; }).catch(() => { const el = document.getElementById("ult5"); if (el) el.innerHTML = ""; });
   for (const [m, c] of Object.entries(MERC)) {
     const o = x[c.k], u = x.ult && x.ult[c.k];
     h += `<h2>${m}</h2><div class="card"><div class="row3"><div class="tile on"><b>${o.v.toFixed(1)}</b><span>stima per questa partita</span></div><div class="tile"><b>${o.media.toFixed(1)}</b><span>media stagione</span></div><div class="tile"><b>${u ? (u.reduce((a, b) => a + b, 0) / u.length).toFixed(1) : "–"}</b><span>ultime ${u ? u.length : 0}</span></div></div>`;

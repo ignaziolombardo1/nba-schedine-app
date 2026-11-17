@@ -269,3 +269,14 @@ html.chiaro .gdg .gb{background:#e6dccd}
 .pbar{flex:0 0 100%;height:4px;border-radius:2px;background:var(--chip);overflow:hidden;margin-top:2px}.pbar i{display:block;height:100%;border-radius:2px}
 
 #miabar a.vuota{width:44px;height:44px;padding:0;justify-content:center;border-radius:50%;opacity:.92}#miabar a.vuota i{font-size:22px}
+
+/* righe partita: niente numeri sopra i loghi (colonne che possono restringersi, 1/2 solo prima della partita) */
+.cg{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:4px}
+.cl{overflow:hidden;gap:5px}
+.cl .tn{display:flex;align-items:center;gap:3px;min-width:0;flex:0 1 auto;font-size:14px}
+.cl .tl{flex:0 0 auto;width:30px;height:30px}
+.cl .tn .star,.cl .tn button{flex:0 0 auto;font-size:17px;padding:2px}
+[data-st="post"] .n12,[data-st="in"] .n12{display:none}
+.cm{flex:0 0 auto;gap:5px}.cm .big{font-size:28px}
+.cl .n12{min-width:16px;height:16px;padding:0 3px;font-size:10px;line-height:16px;flex:0 0 auto}
+.cl .tn{font-size:13px}.cm .w{font-size:20px}.cm{gap:4px}

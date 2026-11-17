@@ -268,13 +268,14 @@ export async function caricaGamelog(pid, n = 10) {
     for (const cat of st.categories || []) for (const e of cat.events || []) {
       const v = (i) => { const x = parseFloat((e.stats || [])[i]); return Number.isFinite(x) ? x : null; };
       const mn = v(iMin); if (!mn || mn <= 0) continue;
-      righe.push({ data: date[e.eventId] || "", pts: v(iPts), reb: v(iReb), ast: v(iAst), min: mn });
+      const inf = ev[e.eventId] || {}, opp = inf.opponent || {};
+      righe.push({ data: date[e.eventId] || "", pts: v(iPts), reb: v(iReb), ast: v(iAst), min: mn, avv: opp.abbreviation || opp.displayName || "", fuori: String(inf.atVs || "") === "@", ris: String(inf.gameResult || ""), sc: String(inf.score || "") });
     }
   }
   if (!righe.length) throw new Error("gamelog: nessuna partita trovata");
   righe.sort((a, b) => (a.data < b.data ? 1 : -1));
   const u = righe.slice(0, n);
-  return { pts: u.map((x) => x.pts ?? 0), reb: u.map((x) => x.reb ?? 0), ast: u.map((x) => x.ast ?? 0), min: u.map((x) => x.min) };
+  return { pts: u.map((x) => x.pts ?? 0), reb: u.map((x) => x.reb ?? 0), ast: u.map((x) => x.ast ?? 0), min: u.map((x) => x.min), par: u.slice(0, 5).map((x) => ({ d: String(x.data).slice(0, 10), a: x.avv, f: x.fuori, r: x.ris, sc: x.sc, pt: x.pts, rb: x.reb, as: x.ast, mn: x.min })) };
 }
 
 // Scontri diretti tra due squadre (stagione in corso e precedente), dal punto di vista di "a"
@@ -380,4 +381,12 @@ export async function caricaQuintetti(eventId, ttl = 60) {
     out.presenti[pid] = true; if (a.starter) { out.titolari[pid] = true; out.pubblicato = true; }
   }
   return out;
+}
+
+// Dati minimi di un giocatore che non è nell'elenco delle statistiche (panchinari, nuovi arrivi): nome e squadra dalla scheda ESPN
+export async function caricaAtleta(pid) {
+  const d = await get(`https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${pid}`, {}, 3600), a = d.athlete || d;
+  const nome = a.displayName || a.fullName || null, sq = (a.team || {}).abbreviation || null;
+  if (!nome) throw new Error("giocatore non trovato");
+  return { nome, sq };
 }
