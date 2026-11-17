@@ -164,6 +164,11 @@ function schedaPartita(D, p, topPick, cliccabile) {
     else if (p.stato === "in" && reale > lin) chips = `<span class="chip" style="color:${GR};font-weight:600">Totale ${reale} ▲ over ${Number(lin).toFixed(lin % 1 ? 1 : 0)}</span>`;
     else chips = `<span class="chip">Totale ${r.totale.toFixed(0)}</span>`;
   }
+  for (const sq of [p.casa, p.trasf]) { // punti consigliati per squadra: prima della partita la linea con la probabilità, a fine partita i punti reali contro la linea
+    const x = (D.picks || []).find((q) => q.id === `sq_${p.id}_${sq}`); if (!x || (topPick && topPick.id === x.id)) continue;
+    const l = legDa(x), e = esitoPick(x), pt = sq === p.casa ? p.ptCasa : p.ptTr, nm = esc(T(D, sq).b);
+    chips += e == null ? `<span class="chip" style="color:${GR}">${nm} over ${l.soglia} · ${pct(x.prob)}</span>` : `<span class="chip" style="color:${e ? GR : RD};font-weight:600">${nm} ${pt} ${e ? "▲" : "▼"} over ${l.soglia}</span>`;
+  }
   if (topPick) chips += `<span class="chip" style="color:${colEsito(topPick, GR)}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
