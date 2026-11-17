@@ -322,3 +322,20 @@ label.cal.chipbtn{padding:5px 12px;font-size:12px}
 .pfk{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pfk .card{margin:0;padding:10px 12px}
 .pfk b{font-size:20px;display:block}
 html.chiaro .avt,html.chiaro .pfh .av{background:#fff}
+
+/* v106: sigla in contorno dietro il logo (variante B) e pannello «Perché questa linea?» */
+.cg{position:relative}
+.cg>.tm,.cg>.cm{position:relative;z-index:1}
+.wmk{position:absolute;top:50%;transform:translateY(-50%);width:50%;font:800 54px/1 "Barlow Condensed",Inter,sans-serif;letter-spacing:0;color:transparent;-webkit-text-stroke:1.2px color-mix(in srgb,var(--wc) 50%,transparent);pointer-events:none;white-space:nowrap;overflow:visible;clip-path:inset(-30px 0 -30px 0);z-index:0}
+.wmk.c{left:-2px;text-align:left}.wmk.t{right:-2px;text-align:right}
+html.chiaro .wmk{-webkit-text-stroke-color:color-mix(in srgb,var(--wc) 45%,transparent)}
+.pwy{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0 14px;margin:-4px 0 12px}
+.pwy summary{list-style:none;cursor:pointer;color:var(--or);font-weight:600;font-size:13px;padding:11px 0;display:flex;justify-content:space-between}
+.pwy summary::-webkit-details-marker{display:none}.pwy summary::after{content:"⌄";transition:transform .2s}.pwy[open] summary::after{transform:rotate(180deg)}
+.pwy[open]{padding-bottom:12px}
+.pwy .dual{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 10px}.pwy .dual>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px}.pwy .dual b{display:block;font-size:20px}.pwy .dual .or b{color:var(--or)}
+.pwy .why{font-size:13px;line-height:1.45;color:#cfd4df}
+html.chiaro .pwy .why{color:#3a4254}
+.pwy .lad{display:flex;gap:6px}.pwy .lad div{flex:1;text-align:center;border:1px solid var(--line);border-radius:10px;padding:6px 2px;font-size:11px;color:var(--mut)}.pwy .lad b{display:block;color:var(--txt);font-size:14px}.pwy .lad .on{border-color:var(--or);background:rgba(255,138,42,.1)}
+.pwy .fa{display:grid;grid-template-columns:18px 1fr auto;gap:8px;padding:7px 0;border-top:1px solid var(--line);align-items:center;font-size:13px}.pwy .fa i{font-style:normal}
+.pwy .fa .v{font-weight:700;text-align:right}.pwy .up{color:#3ddc84}.pwy .dn{color:#ff5d5d}.pwy .no{color:var(--mut)}

@@ -43,5 +43,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 - v105: la ☆ delle squadre non è più nelle schede della Home ma solo nell'intestazione dello studio partita (`team()` in mia.js, solo se non cliccabile); i giocatori hanno già la ☆ nella loro pagina.
 
+- v106: sigla della squadra in contorno dietro il logo nelle schede Home (`.wmk`, colore `--wc`); pannello «Perché questa linea?» (`perche(x)` in strumenti.js) sotto le giocate dello studio partita, alimentato da `det` (`dettaglio()` in modello.js: media stagione, ultime partite, minuti, difesa, compagni fuori, bookmaker, storico, scala delle linee). Giocate vecchie senza `det` mostrano il solo `motivo`.
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

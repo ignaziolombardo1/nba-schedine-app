@@ -251,8 +251,8 @@ async function vistaStudio(id, force) {
   APP.innerHTML = h;
   const contStudio = (k) => {
     const l = picks.filter(gruppi[k][1]); if (!l.length) return `<div class="vuoto">Nessuna giocata sopra la soglia in questa sezione.</div>`;
-    if (k === "p") return [...raggruppa(l)].filter(([, v]) => v.length).map(([t, v]) => `<div class="sub">${esc(t)}</div>` + v.map((x) => cardPick(x) + `<div class="cap">${esc(x.motivo)}</div>`).join("")).join("");
-    return [p.casa, p.trasf].map((sq) => { const v = l.filter((x) => x.squadra === sq); return v.length ? `<div class="sub lg">${logo(sq, 20)}<b>${esc(T(D, sq).n)}</b></div>` + v.map((x) => cardPick(x) + `<div class="cap">${esc(x.motivo)}</div>`).join("") : ""; }).join("");
+    if (k === "p") return [...raggruppa(l)].filter(([, v]) => v.length).map(([t, v]) => `<div class="sub">${esc(t)}</div>` + v.map((x) => cardPick(x) + perche(x)).join("")).join("");
+    return [p.casa, p.trasf].map((sq) => { const v = l.filter((x) => x.squadra === sq); return v.length ? `<div class="sub lg">${logo(sq, 20)}<b>${esc(T(D, sq).n)}</b></div>` + v.map((x) => cardPick(x) + perche(x)).join("") : ""; }).join("");
   };
   $("#stc").innerHTML = contStudio(stt);
   if (p.stato === "post") { // a fine partita le giocate sui giocatori diventano verdi o rosse

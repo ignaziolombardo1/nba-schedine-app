@@ -86,7 +86,7 @@ export function proiettaGiocatori(sig, avv, teams, players, infortuni = {}, form
       const rid = l10 ? 0.25 : 0.45, bo = (k) => (usciti.length ? Math.min(0.2 * p[k], rid * persi[k] * p[k] / somma[k]) : 0);
       const boost = { pts: bo("pts"), reb: bo("reb"), ast: bo("ast") };
       val.Punti += boost.pts; val.Rimbalzi += boost.reb; val.Assist += boost.ast;
-      const o = { nome: p.nome, pid: p.pid, sq: sig, min: r1(minAtt), assenze: usciti.length ? usciti.slice(0, 3).map((u) => u.nome) : null, boost: usciti.length ? { pts: r1(boost.pts), reb: r1(boost.reb), ast: r1(boost.ast) } : null, inf, forma: r1(l10 ? l10.pts : p.pts), stagione: r1(p.pts), conForma: !!l10,
+      const o = { nome: p.nome, pid: p.pid, sq: sig, min: r1(minAtt), minBase: r1(min0), dif: r1((fDif - 1) * 100), assenze: usciti.length ? usciti.slice(0, 3).map((u) => u.nome) : null, boost: usciti.length ? { pts: r1(boost.pts), reb: r1(boost.reb), ast: r1(boost.ast) } : null, inf, forma: r1(l10 ? l10.pts : p.pts), stagione: r1(p.pts), conForma: !!l10,
         ult: ok ? { pts: [...f.pts].reverse(), reb: [...f.reb].reverse(), ast: [...f.ast].reverse() } : null };
       for (const [m, c] of Object.entries(MERCATI)) {
         const q = props && props[`${normNome(p.nome)}|${c.k}`];
@@ -106,6 +106,14 @@ export function proiettaGiocatori(sig, avv, teams, players, infortuni = {}, form
 }
 
 const mezzo = (v) => { let l = Math.floor(v) + 0.5; if (Math.abs(l + 1 - v) < Math.abs(l - v)) l += 1; return l; };
+// Dati per «Perché questa linea?»: tutto quello che il modello ha usato per la stima, in forma compatta
+function dettaglio(p, c, o, pr) {
+  const u = p.ult && p.ult[c.k], f10 = u && u.length ? Math.round(u.reduce((a, b) => a + b, 0) / u.length * 10) / 10 : null;
+  const i = o.lad.findIndex((x) => x[0] === o.rec);
+  return { st: o.media, f10, nf: u ? u.length : 0, min: p.min, minBase: p.minBase, dif: c.k === "pts" ? p.dif : null,
+    ass: p.assenze, boost: p.boost ? p.boost[c.k] : null, vm: o.vModello, mk: o.mk ? { linea: o.mk.linea, pMk: o.mk.pMk } : null,
+    emp: o.emp, sd: o.sd, lad: i >= 0 ? o.lad.slice(Math.max(0, i - 1), i + 4) : o.lad.slice(0, 5), pf: Math.round(pr * 1000) / 1000 };
+}
 export function consigli(partite) {
   // partite: [{id, casa, trasf, r, giocatori}] -> lista di giocate ordinate per probabilità
   const out = [];
@@ -142,6 +150,7 @@ export function consigli(partite) {
             : `Stima ${o.v.toFixed(1)} ${c.unita} (media stagione ${o.media.toFixed(1)}, ${Math.round(p.min)} min). Con la variabilità tipica${o.emp ? ` e il fatto che negli ultimi ${o.emp.n} incontri ha superato ${o.rec} ${o.emp.h} volte` : ""}, la probabilità di superare ${o.rec} è circa ${Math.round(pr * 100)}%. Senza quote dei bookmaker: controlla la linea offerta.`;
           const motivoPg = pg < 1 ? ` Attenzione: è in dubbio e scende in campo con probabilità del ${Math.round(pg * 100)}%: la percentuale tiene già conto di questo rischio.` : "";
           out.push({ ...base, id: `${c.k}_${g.id}_${p.pid || p.nome}`, tipo: m, squadra: sq, pid: p.pid, testo: `${p.nome} over ${o.rec} ${c.unita}`, stima: o.v.toFixed(1), prob: pr, motivo: motivo + motivoPg, dubbio: pg < 1 ? pg : null,
+            det: dettaglio(p, c, o, pr),
             mercato: mk ? { linea: mk.linea, pMk: mk.pMk, pMod: mk.pMod, pFin: mk.pFin, div: mk.div } : null });
         }
       }

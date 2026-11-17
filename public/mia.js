@@ -196,7 +196,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
     const fin = p.stato === "post";
     return `<${fin ? "div" : "a"} class="card gm cmp${p.stato === "in" ? " inlive" : ""}"${fin ? ` data-tab="${p.id}" data-casa="${p.casa}" data-trasf="${p.trasf}"` : ` href="#/partita/${p.id}"`} data-gid="${p.id}" data-st="${p.stato}" style="--ca:${ct};--cb:${cc}${fin ? ";cursor:pointer" : ""}">
   <div class="riga" style="margin-bottom:4px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span><span class="s">${p.stato === "pre" ? `stimati ${r.ptCasa.toFixed(0)}-${r.ptTr.toFixed(0)}` : fin ? `stimati ${esitoStima(p, "c", r.ptCasa)}-${esitoStima(p, "t", r.ptTr)} · Tabellino` : "Studia"} <i class="ti ${fin ? "ti-chevron-down" : "ti-chevron-right"}"></i></span></div>
-  <div class="cg"><div class="tm cr" data-l="c">${lato(p.casa, "ca", 1)}</div>${mezzo}<div class="tm cr" data-l="t">${lato(p.trasf, "tr", 2)}</div></div>${q}
+  <div class="cg"><span class="wmk c" style="--wc:${cc}" aria-hidden="true">${esc(p.casa)}</span><span class="wmk t" style="--wc:${ct}" aria-hidden="true">${esc(p.trasf)}</span><div class="tm cr" data-l="c">${lato(p.casa, "ca", 1)}</div>${mezzo}<div class="tm cr" data-l="t">${lato(p.trasf, "tr", 2)}</div></div>${q}
   <div class="bar" style="margin:6px 0 6px"><div style="width:${(r.pw * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>${comprimi(chips)}</${fin ? "div" : "a"}>${fin ? `<div class="tabl" id="tb${p.id}" hidden></div>` : ""}`;
   }
   const tag = cliccabile ? "a" : "div", href = cliccabile ? ` href="#/partita/${p.id}"` : "";

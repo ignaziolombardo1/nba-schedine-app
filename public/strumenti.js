@@ -116,3 +116,26 @@ async function vistaProfilo() {
   APP.querySelectorAll("[data-cuore]").forEach((b) => b.onclick = () => { const ab = b.dataset.cuore, v = ls.get("profilo", {}); v.sq = ab; v.col = D.squadre[ab].c; ls.set("profilo", v); applicaProfilo(); vistaProfilo(); });
   const no = document.getElementById("cuoreNo"); if (no) no.onclick = () => { const v = ls.get("profilo", {}); delete v.sq; delete v.col; ls.set("profilo", v); applicaProfilo(); vistaProfilo(); };
 }
+
+// ---------- «Perché questa linea?»: stima, linea scelta, cosa conta e cosa no
+const vir = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
+function perche(x) {
+  const d = x.det;
+  if (!d) return `<div class="cap">${esc(x.motivo || "")}</div>`;
+  const lm = /over ([\d.]+)/.exec(x.testo || ""), linea = lm ? +lm[1] : null, u = x.tipo === "Punti" ? "punti" : x.tipo === "Rimbalzi" ? "rimbalzi" : "assist";
+  const stima = +x.stima, riga = (s, t, v, cl) => `<div class="fa"><i class="${cl}">${s}</i><span>${t}</span><span class="v ${cl === "dn" ? "dn" : ""}">${v}</span></div>`;
+  const su = (v) => (linea != null && v >= linea ? ["▲", "up"] : ["▼", "dn"]), rs = (a, t, v) => riga(a[0], t, v, a[1]);
+  const rows = [];
+  rows.push(rs(su(d.st), "Media della stagione", vir(d.st)));
+  if (d.f10 != null) rows.push(rs(su(d.f10), `Ultime ${d.nf} partite`, vir(d.f10)));
+  else rows.push(riga("•", "Ultime partite", "non disponibili: uso solo la stagione", "no"));
+  rows.push(riga("•", "Minuti attesi" + (d.minBase - d.min >= 0.5 ? " (ridotti: partita probabilmente decisa presto)" : ""), vir(d.min), "no"));
+  if (d.dif != null) rows.push(riga(d.dif >= 0 ? "▲" : "▼", d.dif >= 0 ? "Difesa avversaria più debole della media" : "Difesa avversaria più dura della media", (d.dif > 0 ? "+" : "") + vir(d.dif) + "%", d.dif >= 0 ? "up" : "dn"));
+  if (d.ass && d.ass.length && d.boost) rows.push(riga("▲", `Compagni fuori (${esc(d.ass.join(", "))}): più spazio`, "+" + vir(d.boost), "up"));
+  if (d.mk) rows.push(riga(d.mk.linea >= (linea || 0) ? "▲" : "▼", `Linea del bookmaker (modello da solo: ${vir(d.vm)})`, vir(d.mk.linea), d.mk.linea >= (linea || 0) ? "up" : "dn"));
+  if (d.emp) rows.push(riga(d.emp.h / d.emp.n >= 0.7 ? "▲" : "▼", `Ha superato ${vir(linea)} nelle ultime ${d.emp.n}`, `${d.emp.h} su ${d.emp.n}`, d.emp.h / d.emp.n >= 0.7 ? "up" : "dn"));
+  const pm = d.mk && d.lad.find((l) => l[0] === d.mk.linea);
+  const testo = `L'app stima <b>${vir(stima)}</b> ${u}, ma consiglia <b>${vir(linea)}</b>: è la linea più alta che supera almeno il 70% delle volte (qui ${pct(x.prob)}, dopo la taratura sullo Storico e il rischio che non scenda in campo). È prudente di proposito: più sale la linea, più rende ma meno spesso si centra.${d.mk && linea != null && d.mk.linea - linea >= 2 ? ` Il bookmaker ha messo la linea a <b>${vir(d.mk.linea)}</b>${pm ? `: per l'app lì la probabilità è ${Math.round(pm[1] * 100)}%` : ""}.` : ""}`;
+  const scala = d.lad.map((l) => `<div class="${l[0] === linea ? "on" : ""}">${vir(l[0])}<b>${Math.round(l[1] * 100)}%</b></div>`).join("");
+  return `<details class="pwy"><summary>Perché questa linea?</summary><div class="dual"><div class="or"><span class="s">Stima dell'app</span><b>${vir(stima)} ${u === "punti" ? "pt" : u}</b></div><div><span class="s">Linea scelta</span><b>${vir(linea)} <span class="s">· ${pct(x.prob)}</span></b></div></div><div class="why">${testo}</div><div class="s" style="margin:10px 0 4px">Probabilità del modello di superare ogni linea</div><div class="lad">${scala}</div><div class="s" style="margin:12px 0 2px">Cosa tiene in conto</div>${rows.join("")}<div class="s" style="margin:12px 0 2px">Cosa non tiene in conto</div><div class="fa"><i class="no">–</i><span class="no">Come ha giocato contro questa squadra in particolare</span><span></span></div><div class="fa"><i class="no">–</i><span class="no">Motivazioni, rivalità, serie di vittorie o sconfitte</span><span></span></div><div class="fa"><i class="no">–</i><span class="no">Viaggi, meteo, ruolo nei finali di partita</span><span></span></div></details>`;
+}
