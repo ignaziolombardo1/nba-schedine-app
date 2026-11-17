@@ -147,7 +147,13 @@ function schedaPartita(D, p, topPick, cliccabile) {
   const centro = p.stato === "pre"
     ? `<div class="mid"><div class="ora">${esc(String(p.ora).slice(-5))}</div><div class="s">${esc(String(p.ora).slice(0, 5))}</div></div>`
     : `<div class="mid"><div class="sc"><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="c">${p.ptCasa ?? 0}</span><i>-</i><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="t">${p.ptTr ?? 0}</span></div></div>`;
-  let chips = `<span class="chip">Totale ${r.totale.toFixed(0)}</span>`;
+  let chips;
+  { // Totale: a partita finita (o già superato in corso) diventa il totale reale: verde se supera la linea, rosso se resta sotto
+    const reale = (p.ptCasa ?? 0) + (p.ptTr ?? 0), lin = parseFloat(ls.get("L_tot_" + p.id, "")) || (D.linee || {})["tot_" + p.casa] || (r.mk && r.mk.tot ? r.mk.tot.linea : null) || r.totale;
+    if (p.stato === "post") chips = `<span class="chip" style="color:${reale > lin ? GR : reale < lin ? RD : MU};font-weight:600">Totale ${reale} ${reale > lin ? "▲ over" : reale < lin ? "▼ under" : "="} ${Number(lin).toFixed(lin % 1 ? 1 : 0)}</span>`;
+    else if (p.stato === "in" && reale > lin) chips = `<span class="chip" style="color:${GR};font-weight:600">Totale ${reale} ▲ over ${Number(lin).toFixed(lin % 1 ? 1 : 0)}</span>`;
+    else chips = `<span class="chip">Totale ${r.totale.toFixed(0)}</span>`;
+  }
   if (topPick) chips += `<span class="chip" style="color:${GR}">${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
