@@ -236,7 +236,12 @@ async function avvisiSchedine(env, g) {
         inf ||= await caricaInfortuni().catch(() => ({}));
         for (const l of r.legs) {
           if (!l.nome || !l.pid || !preIds.has(String(l.g))) continue;
-          const i = inf[l.nome.trim().toLowerCase()]; if (!i || i.grado > 0.5) continue;
+          const i = inf[l.nome.trim().toLowerCase()];
+          if (!i || i.grado > 0.5) { // era segnalato fuori o in dubbio e ora non lo è più: avviso di rientro (solo se l'elenco infortuni è stato letto)
+            const ks = Object.keys(a.i || {}).filter((k) => k.startsWith(l.pid + ":"));
+            if (ks.length && Object.keys(inf).length) { ks.forEach((k) => delete a.i[k]); cambiato = true;
+              await accodaPush(env, { titolo: "✅ Giocatore disponibile", testo: `${l.nome} non risulta più fuori o in dubbio: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("rientro " + l.nome); }
+            continue; }
           const k = `${l.pid}:${i.stato}`; a.i ||= {}; if (a.i[k]) continue; a.i[k] = 1; cambiato = true;
           await accodaPush(env, { titolo: i.stato === "out" ? "⚠️ Giocatore fuori" : "⚠️ Giocatore in dubbio", testo: `${l.nome} è ${i.stato === "out" ? "fuori" : "in dubbio"}${i.etichetta ? " (" + i.etichetta + ")" : ""}: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("infortunio " + l.pid);
         }
