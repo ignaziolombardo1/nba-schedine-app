@@ -353,3 +353,10 @@ html.chiaro .pwy .why{color:#3a4254}
 html.notte{--bg:#000;--card:#07090e;--line:#1c2030;--mut:#b4bccc;--chip:#10131b}
 html.notte body{background:#000}
 html.notte .card{background:#07090e;border-color:#1c2030}
+
+/* v111: modalità divano */
+html.divano .big,html.divano .liveN{font-size:44px}
+html.divano .card.inlive .tn{font-size:20px}
+html.divano .lvdet .fz,html.divano .lvdet .sub,html.divano .lvdet .seg{font-size:18px}
+html.divano .qr span{font-size:16px}
+html.divano .riga.s,html.divano .cap{font-size:16px}

@@ -68,15 +68,15 @@ function formazioniLive(D, p) {
 function avanzamentoLeg(l, D) {
   const p = D.partite.find((x) => x.id === l.g);
   if (!p) return D.prossime.some((x) => x.id === l.g) ? { st: "pre", testo: "non ancora iniziata" } : { st: "nd", testo: "partita non in corso" };
-  let cur = null;
+  let cur = null, pf = 0;
   if (l.k === "tot") cur = (p.ptTr || 0) + (p.ptCasa || 0);
   else if (l.k === "sq") cur = l.sq === p.casa ? p.ptCasa : p.ptTr;
   else if (l.k === "win") { const d = l.sq === p.casa ? (p.ptCasa || 0) - (p.ptTr || 0) : (p.ptTr || 0) - (p.ptCasa || 0); return { st: d > 0 ? "vant" : "svant", testo: `${d > 0 ? "in vantaggio di " : "sotto di "}${Math.abs(d)}`, cur: d, soglia: 0, p }; }
-  else { const g = p.giocatori.find((x) => (l.pid && x.pid === l.pid) || (l.nome && x.nome === l.nome)); if (!g) return { st: "nd", testo: "giocatore non ancora nel tabellino", p }; cur = g[l.k]; }
+  else { const g = p.giocatori.find((x) => (l.pid && x.pid === l.pid) || (l.nome && x.nome === l.nome)); if (!g) return { st: "nd", testo: "giocatore non ancora nel tabellino", p }; cur = g[l.k]; pf = g.pf || 0; }
   const over = l.dir !== "under", sg = l.soglia;
   const st = over ? (cur > sg ? "ok" : "in") : (cur > sg ? "no" : "in");
   const proj = p.f >= 0.2 && cur != null && p.stato === "in" ? Math.round(cur / p.f) : null; // proiezione: stesso ritmo fino al fischio finale
-  return { st, cur, soglia: sg, testo: `${cur} / ${sg}`, p, proj };
+  return { st, cur, soglia: sg, testo: `${cur} / ${sg}`, p, proj, pf };
 }
 function mieGiocateLive(D) {
   const oggi = new Date().toISOString().slice(0, 10), R = ls.get("registro", []).filter((r) => r.legs && r.legs.length && (r.esito == null || String(r.data) >= oggi || r.esito != null && String(r.data) >= new Date(Date.now() - 86400000).toISOString().slice(0, 10)));
@@ -85,7 +85,7 @@ function mieGiocateLive(D) {
   return `<div class="sub"><i class="ti ti-ticket" style="color:${OR}"></i> Le mie giocate</div>` + R.map((r) => `<div class="card"><div class="riga"><b>${esc(r.nome)}</b><span class="s">${r.esito === 1 ? "<b style=\"color:" + GR + "\">VINTA</b> · " : r.esito === 0 ? "<b style=\"color:" + RD + "\">PERSA</b> · " : ""}quota ${r.quota} · ${r.puntata} €${r.esito == null ? `<button class="chipbtn" data-delm="${esc(r.id)}" style="padding:2px 9px;font-size:11px;margin-left:6px">Rimuovi</button>` : ""}</span></div>` + (r.esito != null && r.es ? dettaglioLegs(r) : r.legs.map((l) => {
     const a = avanzamentoLeg(l, D), c = col[a.st] || MU, pr = a.soglia > 0 && a.cur != null ? Math.max(0, Math.min(100, (a.cur / a.soglia) * 100)) : 0;
     const ic = a.st === "ok" ? "ti-circle-check-filled" : a.st === "no" ? "ti-circle-x-filled" : "ti-circle-dashed";
-    return `<div style="margin-top:10px"><div class="riga" style="gap:8px"><div style="min-width:0;flex:1"><i class="ti ${ic}" style="color:${c}"></i> ${esc(l.testo)}</div><b style="color:${c};white-space:nowrap">${esc(a.testo)}</b></div>${a.soglia > 0 ? `<div class="bar" style="height:4px;margin-top:4px"><div style="width:${pr}%;background:${c}"></div></div>` : ""}${a.p ? `<div class="s" style="margin-top:2px">${esc(a.p.dettaglio || "")}${a.proj != null && a.soglia > 0 ? ` · stima finale <b style="color:${(a.proj > a.soglia) === (l.dir !== "under") ? GR : AM}">${a.proj}</b> ${(a.proj > a.soglia) === (l.dir !== "under") ? "(sopra la linea)" : "(sotto la linea)"}` : ""}</div>` : ""}</div>`;
+    return `<div style="margin-top:10px"><div class="riga" style="gap:8px"><div style="min-width:0;flex:1"><i class="ti ${ic}" style="color:${c}"></i> ${esc(l.testo)}</div><b style="color:${c};white-space:nowrap">${esc(a.testo)}</b></div>${a.soglia > 0 ? `<div class="bar" style="height:4px;margin-top:4px"><div style="width:${pr}%;background:${c}"></div></div>` : ""}${a.p ? `<div class="s" style="margin-top:2px">${esc(a.p.dettaglio || "")}${a.pf >= 4 ? ` · <b style="color:${AM}">${a.pf} falli</b>` : ""}${a.proj != null && a.soglia > 0 ? ` · stima finale <b style="color:${(a.proj > a.soglia) === (l.dir !== "under") ? GR : AM}">${a.proj}</b> ${(a.proj > a.soglia) === (l.dir !== "under") ? "(sopra la linea)" : "(sotto la linea)"}` : ""}</div>` : ""}</div>`;
   }).join("")) + `</div>`).join("");
 }
 const bloccoLive = {};
@@ -100,9 +100,9 @@ async function vistaLive(primo = true) {
   }
   let D; try { D = await api("/api/live", 3000); } catch (e) { if (primo) APP.innerHTML = topBar() + errBox(e); timer = setTimeout(() => location.hash.startsWith("#/live") && vistaLive(false), 20000); return; }
   if (!location.hash.startsWith("#/live")) return;
-  aggiornaStoriaLive(D);
+  aggiornaStoriaLive(D); aggiornaCronaca(D);
   const B = []; // blocchi con chiave: si riscrive solo quello che cambia, così la pagina non lampeggia
-  B.push(["top", topBar(D) + novitaLive() + `<div class="cap" style="margin-top:0">Si aggiorna da solo ogni 6 secondi (ESPN pubblica i dati ogni 10-20 secondi circa). Le probabilità tengono conto di punteggio, tempo rimasto e minuti giocati.</div>`]);
+  B.push(["top", topBar(D) + bottoneDivano() + novitaLive() + `<div class="cap" style="margin-top:0">Si aggiorna da solo ogni 6 secondi (ESPN pubblica i dati ogni 10-20 secondi circa). Le probabilità tengono conto di punteggio, tempo rimasto e minuti giocati.</div>`]);
   if (!D.partite.length) {
     let h = `<div class="vuoto"><b>Nessuna partita in corso.</b><br>Oggi: ${D.totali} partite, ${D.finite} finite.</div>`;
     if (D.prossime.length) h += `<h2>Prossime partite</h2>` + D.prossime.map((q) => `<a class="card riga" href="#/partita/${q.id}"><div class="lg">${logo(q.casa, 28)}<b>${esc(q.casa)}</b><span class="s">-</span>${logo(q.trasf, 28)}<b>${esc(q.trasf)}</b></div><span class="s">${esc(q.ora)}</span></a>`).join("");
@@ -110,7 +110,7 @@ async function vistaLive(primo = true) {
   }
   B.push(["mie", mieGiocateLive(D)]);
   for (const p of D.partite) {
-    let h = formazioniLive(D, p) + grafLive(p);
+    let h = formazioniLive(D, p) + grafLive(p) + cronacaHtml(p.id);
     if (p.segnali && p.segnali.length) h += `<div class="sub"><span class="pill" style="color:${OR}"><span class="dot"></span>Segnali live</span> <span class="s">nati durante la partita</span></div>` + p.segnali.map(rigaSegnale).join("");
     const picks = [...p.picks].sort((a, b) => (a.pLive >= 0.995) - (b.pLive >= 0.995) || b.pLive - a.pLive);
     if (picks.length) h += `<div class="sub">Le nostre giocate su questa partita</div>` + picks.map(rigaLive).join("");

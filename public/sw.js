@@ -1,5 +1,5 @@
-const V = "nba-v110";
-const SHELL = ["/", "/style.css", "/core.js", "/mia.js", "/partite.js", "/conto.js", "/statistiche.js", "/strumenti.js", "/giocatore.js", "/live.js", "/esplora.js", "/idee1.js", "/app.js", "/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png"];
+const V = "nba-v111";
+const SHELL = ["/", "/style.css", "/core.js", "/mia.js", "/partite.js", "/conto.js", "/statistiche.js", "/strumenti.js", "/giocatore.js", "/live.js", "/esplora.js", "/idee1.js", "/idee2.js", "/app.js", "/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== V).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", (e) => {
@@ -17,7 +17,8 @@ self.addEventListener("push", (e) => {
       try { const sb = await self.registration.pushManager.getSubscription(); if (sb) id = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sb.endpoint)))].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join(""); } catch {}
       const r = await fetch("/api/ultimo-avviso?id=" + id, { cache: "no-store" }); if (r.ok) a = await r.json();
     } catch {}
-    await self.registration.showNotification(a.titolo, { body: a.testo, icon: "/icon-192.png", badge: "/icon-192.png", data: { url: a.url || "/#/" } });
+    const tag = a.tag || (/partita\/\d+/.exec(a.url || "") || [])[0]; // stessa partita: la notifica nuova sostituisce la vecchia
+    await self.registration.showNotification(a.titolo, { body: a.testo, icon: "/icon-192.png", badge: "/icon-192.png", data: { url: a.url || "/#/" }, ...(tag ? { tag, renotify: true } : {}) });
   })());
 });
 self.addEventListener("notificationclick", (e) => {
