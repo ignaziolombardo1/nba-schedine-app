@@ -31,5 +31,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 - Strumenti: Home colora le giocate sui giocatori a fine partita (`coloraGiocatoriHome`); nelle schede giocata campo «Quota del bookmaker» con valore atteso (`quotaRow`, chiavi `Q_<id>`); `#/forma` (giocatori sopra/sotto la media nelle ultime 5); budget mensile (`budget` in localStorage, avviso in Home all'80% e al 100%); copie settimanali del registro sul server (`bk` nella riga `_reg_<codice>`, `/api/copie`, `/api/copia`) ripristinabili da Impostazioni. `sincronizza` ora conserva anche `sera` e `bk`.
 - Schede partita: massimo 3 etichette, le altre dietro «+N» (`comprimi`, `strumenti.js`); le probabilità prima della partita sono neutre, verde/rosso solo per esiti reali. Esiti: blocco «Le tue giocate» del giorno (`bloccoMieGiornata`). Fix v99: la rotta `#/esiti` ora apre davvero `vistaEsiti` (dalla v50 apriva Modello). Statistiche giocatori: due pagine ESPN (circa 400 giocatori).
 
+- v100: barra in basso compatta e agganciata al bordo (blocco finale di style.css); `#miabar` e padding di `main` adeguati.
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.
