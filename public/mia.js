@@ -84,6 +84,11 @@ document.addEventListener("click", async (e) => {
   ls.set("mia", L); b.classList.toggle("on", i < 0); b.textContent = i < 0 ? "✓" : "+"; barraMia(); if (location.hash.startsWith("#/mia") && window.__miaAgg) window.__miaAgg();
 }, true);
 const ESPL = new Map(); // esiti dei giocatori a fine partita (da /api/valuta-giocate): id giocata -> 1 o 0
+// al massimo 3 etichette sulla scheda; le altre si aprono con «+N» (i colori verde e rosso restano per gli esiti reali)
+function comprimi(chips) {
+  const L = chips.match(/<span class="chip"[\s\S]*?<\/span>/g) || []; if (L.length <= 3) return chips;
+  return L.slice(0, 3).join("") + `<span class="chip more" role="button" style="cursor:pointer;color:var(--or)">+${L.length - 3}</span><span class="resto" hidden>${L.slice(3).join("")}</span>`;
+}
 // esito reale di una giocata sulle squadre (totale, punti squadra, vincente) quando la partita è finita: 1 centrata, 0 sbagliata, null altrimenti
 function esitoPick(x) {
   if (ESPL.has(x.id)) return ESPL.get(x.id);
@@ -175,9 +180,9 @@ function schedaPartita(D, p, topPick, cliccabile) {
   for (const sq of [p.casa, p.trasf]) { // punti consigliati per squadra: prima della partita la linea con la probabilità, a fine partita i punti reali contro la linea
     const x = (D.picks || []).find((q) => q.id === `sq_${p.id}_${sq}`); if (!x || (topPick && topPick.id === x.id)) continue;
     const l = legDa(x), e = esitoPick(x), pt = sq === p.casa ? p.ptCasa : p.ptTr, nm = esc(T(D, sq).b);
-    chips += e == null ? `<span class="chip" style="color:${GR}">${nm} over ${l.soglia} · ${pct(x.prob)}</span>` : `<span class="chip" style="color:${e ? GR : RD};font-weight:600">${nm} ${pt} ${e ? "▲" : "▼"} over ${l.soglia}</span>`;
+    chips += e == null ? `<span class="chip">${nm} over ${l.soglia} · ${pct(x.prob)}</span>` : `<span class="chip" style="color:${e ? GR : RD};font-weight:600">${nm} ${pt} ${e ? "▲" : "▼"} over ${l.soglia}</span>`;
   }
-  if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, GR)}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
+  if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, "inherit")}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
     const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 34)}<div class="tn"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b>${esc(ab)}${stella("sq", ab)}</div></div>`;
@@ -189,7 +194,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
     return `<${fin ? "div" : "a"} class="card gm cmp${p.stato === "in" ? " inlive" : ""}"${fin ? ` data-tab="${p.id}" data-casa="${p.casa}" data-trasf="${p.trasf}"` : ` href="#/partita/${p.id}"`} data-gid="${p.id}" data-st="${p.stato}" style="--ca:${ct};--cb:${cc}${fin ? ";cursor:pointer" : ""}">
   <div class="riga" style="margin-bottom:4px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span><span class="s">${p.stato === "pre" ? `stimati ${r.ptCasa.toFixed(0)}-${r.ptTr.toFixed(0)}` : fin ? `stimati ${esitoStima(p, "c", r.ptCasa)}-${esitoStima(p, "t", r.ptTr)} · Tabellino` : "Studia"} <i class="ti ${fin ? "ti-chevron-down" : "ti-chevron-right"}"></i></span></div>
   <div class="cg"><div class="tm cr" data-l="c">${lato(p.casa, "ca", 1)}</div>${mezzo}<div class="tm cr" data-l="t">${lato(p.trasf, "tr", 2)}</div></div>${q}
-  <div class="bar" style="margin:6px 0 6px"><div style="width:${(r.pw * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>${chips}</${fin ? "div" : "a"}>${fin ? `<div class="tabl" id="tb${p.id}" hidden></div>` : ""}`;
+  <div class="bar" style="margin:6px 0 6px"><div style="width:${(r.pw * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>${comprimi(chips)}</${fin ? "div" : "a"}>${fin ? `<div class="tabl" id="tb${p.id}" hidden></div>` : ""}`;
   }
   const tag = cliccabile ? "a" : "div", href = cliccabile ? ` href="#/partita/${p.id}"` : "";
   return `<${tag} class="card gm${p.stato === "in" ? " inlive" : ""}"${href} data-gid="${p.id}" data-st="${p.stato}" style="--ca:${ct};--cb:${cc}">

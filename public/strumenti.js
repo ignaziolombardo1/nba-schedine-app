@@ -66,3 +66,17 @@ document.addEventListener("click", async (e) => {
     }
   } catch (er) { alert("Non riesco: " + er.message); }
 });
+
+// «+N» sulle schede partita: mostra le etichette nascoste senza aprire la partita
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest(".chip.more"); if (!b) return;
+  e.preventDefault(); e.stopPropagation(); const r = b.nextElementSibling; if (r && r.classList.contains("resto")) { r.hidden = false; r.style.display = "contents"; b.remove(); }
+}, true);
+
+// Esiti: le tue giocate del giorno scelto con il saldo, sopra il riepilogo del modello
+function bloccoMieGiornata() {
+  const y = String(typeof giorno === "number" ? etGiorno(giorno).ymd : giorno).replace(/\D/g, ""), d = y.slice(0, 4) + "-" + y.slice(4, 6) + "-" + y.slice(6, 8);
+  const R = ls.get("registro", []).filter((r) => String(r.data) === d); if (!R.length) return "";
+  const ch = R.filter((r) => r.esito === 0 || r.esito === 1), saldo = ch.reduce((t, r) => t + (r.esito === 1 ? (r.puntata || 0) * ((r.quota || 1) - 1) : -(r.puntata || 0)), 0), ok = ch.filter((r) => r.esito === 1).length;
+  return `<h2>Le tue giocate</h2><div class="card" style="padding:4px 12px">` + R.map((r, i) => `<div class="riga rg" style="${i ? "" : "border-top:0"}"><div style="min-width:0"><b>${esc(r.nome || "Schedina")}</b><div class="s">quota ${r.quota} · ${r.puntata} €</div></div><b style="color:${r.esito === 1 ? GR : r.esito === 0 ? RD : "var(--mut)"}">${r.esito === 1 ? "Vinta" : r.esito === 0 ? "Persa" : "In attesa"}</b></div>`).join("") + `<div class="riga rg"><b>${ch.length ? `${ok} su ${ch.length} prese` : "Nessuna ancora chiusa"}</b><b style="color:${saldo >= 0 ? GR : RD}">${ch.length ? eur(saldo) : ""}</b></div></div>`;
+}
