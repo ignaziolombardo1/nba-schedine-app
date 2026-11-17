@@ -41,5 +41,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 - v104: intestazione bassa su una riga con avatar `.avt` che apre `#/profilo`; Giocata del giorno compatta; schede partita meno dense; riga Esplora con sfumatura. Profilo (`vistaProfilo`, `applicaProfilo` in strumenti.js, chiave `profilo` in localStorage: nome, squadra del cuore, colore): la squadra del cuore cambia `--or` e la costante `OR` (core.js, ora `let`); sul server non si sincronizza.
 
+- v105: la ☆ delle squadre non è più nelle schede della Home ma solo nell'intestazione dello studio partita (`team()` in mia.js, solo se non cliccabile); i giocatori hanno già la ☆ nella loro pagina.
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

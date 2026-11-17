@@ -169,7 +169,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
   if (p.stato === "post") { chip = "Finale"; col = GR; } else if (p.stato === "in") { chip = `<span class="dot"></span>Live · ${esc(p.dettaglio)}`; col = OR; } else chip = esc(p.ora);
   const fav = r.margine > 0 ? p.casa : p.trasf;
   const cc = t.c, ct = v.c.toLowerCase() === cc.toLowerCase() ? "#5a6378" : v.c;
-  const team = (ab, ruolo, stima, l) => `<div class="tm" data-l="${l}">${cliccabile ? logo(ab, 54) : `<a href="#/squadra/${esc(ab)}" aria-label="Pagina ${esc(ab)}" style="display:block;position:relative">${logo(ab, 54)}<span class="nwb"><i class="ti ti-chevron-right"></i></span></a>`}<div class="tn">${esc(T(D, ab).b)}</div><div class="s">${ruolo}</div><div class="st">${esitoStima(p, l, stima)} <span>stimati</span></div></div>`;
+  const team = (ab, ruolo, stima, l) => `<div class="tm" data-l="${l}">${cliccabile ? logo(ab, 54) : `<a href="#/squadra/${esc(ab)}" aria-label="Pagina ${esc(ab)}" style="display:block;position:relative">${logo(ab, 54)}<span class="nwb"><i class="ti ti-chevron-right"></i></span></a>`}<div class="tn">${esc(T(D, ab).b)}${cliccabile ? "" : stella("sq", ab)}</div><div class="s">${ruolo}</div><div class="st">${esitoStima(p, l, stima)} <span>stimati</span></div></div>`;
   const centro = p.stato === "pre"
     ? `<div class="mid"><div class="ora">${esc(String(p.ora).slice(-5))}</div><div class="s">${esc(String(p.ora).slice(0, 5))}</div></div>`
     : `<div class="mid"><div class="sc"><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="c">${p.ptCasa ?? 0}</span><i>-</i><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="t">${p.ptTr ?? 0}</span></div></div>`;
@@ -188,7 +188,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
   if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, "inherit")}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
-    const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 34)}<div class="tn"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b>${esc(ab)}${stella("sq", ab)}</div></div>`;
+    const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 34)}<div class="tn"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b>${esc(ab)}</div></div>`;
     const mezzo = p.stato === "pre"
       ? `<div class="cm"><span class="w">${pct(r.pw)}</span><i>-</i><span class="w">${pct(1 - r.pw)}</span></div>`
       : `<div class="cm"><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="c">${p.ptCasa ?? 0}</span><i>-</i><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="t">${p.ptTr ?? 0}</span></div>`;
