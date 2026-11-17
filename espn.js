@@ -85,13 +85,17 @@ export async function caricaStatistiche() {
       const par = { region: "us", lang: "en", contentorigin: "espn", isqualified: "false", page: 1, limit: 200, season: t.season, seasontype: 2 };
       if (t.sort) par.sort = "offensive.avgPoints:desc";
       const pj = await get(ESPN_ATL, par, 1800);
+      // seconda pagina (giocatori meno prolifici, panchinari): se non risponde si va avanti con la prima
+      try { const p2 = await get(ESPN_ATL, { ...par, page: 2 }, 1800); if (Array.isArray(p2.athletes) && p2.athletes.length) pj.athletes = [...(pj.athletes || []), ...p2.athletes]; } catch {}
       const nomiCol = {}; for (const c of pj.categories || []) nomiCol[c.name] = c.names || [];
       ricevuti = (pj.athletes || []).length;
+      const visti = new Set();
       for (const a of pj.athletes || []) {
         const v = {};
         for (const c of a.categories || []) (nomiCol[c.name] || []).forEach((n, i) => { v[n] = (c.values || [])[i]; });
         const info = a.athlete || {};
         const ab = nomi["id:" + info.teamId] || nomi[String(info.teamShortName || "").toLowerCase()] || nomi[String(info.teamName || "").toLowerCase()];
+        const idg = String(info.id || ""); if (idg && visti.has(idg)) continue; visti.add(idg);
         if (ab && v.avgPoints != null && v.avgMinutes != null)
           players.push({ nome: info.displayName, pid: String(info.id || ""), sq: ab, min: +v.avgMinutes, pts: +v.avgPoints, reb: +(v.avgRebounds || 0), ast: +(v.avgAssists || 0) });
       }

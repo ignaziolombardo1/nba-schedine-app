@@ -280,3 +280,4 @@ html.chiaro .gdg .gb{background:#e6dccd}
 .cm{flex:0 0 auto;gap:5px}.cm .big{font-size:28px}
 .cl .n12{min-width:16px;height:16px;padding:0 3px;font-size:10px;line-height:16px;flex:0 0 auto}
 .cl .tn{font-size:13px}.cm .w{font-size:20px}.cm{gap:4px}
+#miabar{transition:opacity .2s,transform .2s}#miabar.nasc{opacity:0;transform:translateY(16px);pointer-events:none}

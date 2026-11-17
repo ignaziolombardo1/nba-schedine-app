@@ -1,7 +1,7 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "95";
+const VERSIONE = "96";
 // ---------- router
 let timer = null;
 function route(force) {
@@ -57,6 +57,8 @@ document.addEventListener("visibilitychange", async () => {
     } catch {}
   }
 });
+// il pulsante schedina si nasconde mentre scorri e torna quando ti fermi
+{ let tm = null; window.addEventListener("scroll", () => { const b = document.getElementById("miabar"); if (!b) return; b.classList.add("nasc"); clearTimeout(tm); tm = setTimeout(() => b.classList.remove("nasc"), 700); }, { passive: true }); }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 // Se il telefono chiude la pagina in secondo piano e la riapre da zero, si torna dove eri (pagina e posizione) entro 30 minuti
 const salvaPosizione = () => ls.set("ult", { h: location.hash, y: window.scrollY, t: Date.now() });
