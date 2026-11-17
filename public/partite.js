@@ -83,7 +83,7 @@ const campana = (id) => { const on = siSegue("gm", String(id)); return `<button 
 const stella = (t, id, nome = "", sq = "") => { const on = siSegue(t, id); return `<button class="star${on ? " on" : ""}" data-fav="${t}|${esc(id)}|${esc(nome)}|${esc(sq)}" aria-label="${on ? "Non seguire più" : "Segui"}">${on ? "★" : "☆"}</button>`; };
 const partitaPreferita = (p) => { const P = pref(); return P.sq.includes(p.casa) || P.sq.includes(p.trasf) || P.pl.some((x) => x.sq === p.casa || x.sq === p.trasf); };
 function riquadroPreferiti(D) {
-  const P = pref(); if (!P.sq.length && !P.pl.length) return `<div class="cap" style="margin-top:0">Tocca la ☆ accanto a una squadra o a un giocatore per seguirlo: le sue partite salgono in alto.</div>`;
+  const P = pref(); if (!P.sq.length && !P.pl.length) { const nv = ls.get("hintStella", 0); if (nv >= 4) return ""; ls.set("hintStella", nv + 1); } if (!P.sq.length && !P.pl.length) return `<div class="cap" style="margin-top:0">Tocca la ☆ accanto a una squadra o a un giocatore per seguirlo: le sue partite salgono in alto.</div>`;
   const righe = [];
   for (const ab of P.sq) { const g = D.partite.find((p) => p.casa === ab || p.trasf === ab); righe.push(`<a class="riga rg" ${g ? `href="#/partita/${g.id}"` : ""} style="color:inherit"><div class="lg">${logo(ab, 24)}<b>${esc(T(D, ab).n)}</b></div><span class="s">${g ? (g.stato === "pre" ? esc(String(g.ora).slice(-5)) : g.stato === "in" ? esc(g.dettaglio) + " · " + g.ptTr + "-" + g.ptCasa : "Finale " + g.ptTr + "-" + g.ptCasa) : "non gioca"}</span></a>`); }
   for (const f of P.pl) { let x = null, g = null; for (const q of D.partite) { const t = q.giocatori.find((y) => String(y.pid) === String(f.pid)); if (t) { x = t; g = q; break; } }

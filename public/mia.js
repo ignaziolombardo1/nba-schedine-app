@@ -13,7 +13,7 @@ function barraMia() {
   const el = document.getElementById("miabar"); if (!el) return;
   const L = miaLeggi(); if (location.hash.startsWith("#/mia")) { el.style.display = "none"; return; }
   const q = L.reduce((a, l) => a / Math.max(0.05, l.prob), 1);
-  el.style.display = "flex"; el.innerHTML = L.length ? `<a href="#/mia" aria-label="La mia schedina: ${L.length} giocate, quota giusta ${q.toFixed(2)}"><i class="ti ti-ticket"></i><b>${L.length}</b></a>` : `<a href="#/mia" class="vuota" aria-label="Componi la tua schedina"><i class="ti ti-ticket"></i><b>Schedina</b></a>`;
+  el.style.display = "flex"; el.innerHTML = L.length ? `<a href="#/mia" aria-label="La mia schedina: ${L.length} giocate, quota giusta ${q.toFixed(2)}"><i class="ti ti-ticket"></i><b>${L.length}</b></a>` : `<a href="#/mia" class="vuota" aria-label="Componi la tua schedina"><i class="ti ti-ticket"></i></a>`;
 }
 // Raggruppa per giornata (la più recente aperta, le altre chiuse) con il conteggio di quelle centrate
 const nomeGiorno = (d) => { const x = new Date(d + "T12:00:00"); return isNaN(x) ? String(d || "Senza data") : x.toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "long" }); };
@@ -83,8 +83,10 @@ document.addEventListener("click", async (e) => {
   if (i >= 0) L.splice(i, 1); else L.push(l);
   ls.set("mia", L); b.classList.toggle("on", i < 0); b.textContent = i < 0 ? "✓" : "+"; barraMia(); if (location.hash.startsWith("#/mia") && window.__miaAgg) window.__miaAgg();
 }, true);
+const ESPL = new Map(); // esiti dei giocatori a fine partita (da /api/valuta-giocate): id giocata -> 1 o 0
 // esito reale di una giocata sulle squadre (totale, punti squadra, vincente) quando la partita è finita: 1 centrata, 0 sbagliata, null altrimenti
 function esitoPick(x) {
+  if (ESPL.has(x.id)) return ESPL.get(x.id);
   const D = window.__D, p = D && D.partite && D.partite.find((q) => q.id === x.g); if (!p || p.stato !== "post") return null;
   const l = legDa(x), c = p.ptCasa ?? 0, t = p.ptTr ?? 0;
   let cur; if (l.k === "tot") cur = c + t; else if (l.k === "sq") cur = l.sq === p.casa ? c : t; else if (l.k === "win") { const d = l.sq === p.casa ? c - t : t - c; return d > 0 ? 1 : 0; } else return null;

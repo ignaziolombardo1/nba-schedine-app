@@ -370,3 +370,14 @@ export async function caricaNews(sigla = null, quante = 14) {
   }
   return out.slice(0, quante);
 }
+
+// Quintetti ufficiali di una partita: ESPN li pubblica poco prima dell'inizio (giocatori con starter=true nel boxscore).
+// Restituisce { pubblicato, titolari: {pid: true}, presenti: {pid: true} } (presenti = tutti i giocatori elencati).
+export async function caricaQuintetti(eventId, ttl = 60) {
+  const d = await get(`${ESPN}/summary`, { event: eventId }, ttl), out = { pubblicato: false, titolari: {}, presenti: {} };
+  for (const team of (d.boxscore || {}).players || []) for (const blocco of team.statistics || []) for (const a of blocco.athletes || []) {
+    const pid = (a.athlete || {}).id ? String(a.athlete.id) : null; if (!pid) continue;
+    out.presenti[pid] = true; if (a.starter) { out.titolari[pid] = true; out.pubblicato = true; }
+  }
+  return out;
+}

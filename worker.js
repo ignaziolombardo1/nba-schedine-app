@@ -1,7 +1,7 @@
 import { info, nome, SQUADRE } from "./squadre.js";
 import { proiettaPartita, proiettaGiocatori, consigli, proposte, proposteQuota, valuta, phi, STD, frazioneGara, probLive, segnaliLive } from "./modello.js";
 import { aggiornaQuote, chiaveGara } from "./quote.js";
-import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni, caricaNews } from "./espn.js";
+import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, caricaQuintetti, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni, caricaNews } from "./espn.js";
 
 const arr = (k, v) => (typeof v === "number" && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
 const J = (o, ttl = 0) => new Response(JSON.stringify(o, arr), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": ttl ? `public, max-age=${ttl}` : "no-store", "access-control-allow-origin": "*" } });
@@ -244,6 +244,19 @@ async function avvisiSchedine(env, g) {
         const tra = r.legs.map((l) => g.partite.find((p) => p.stato === "pre" && String(p.id) === String(l.g))).filter(Boolean).map((p) => (Date.parse(p.iso) - Date.now()) / 60000).filter((m) => m > 0);
         const m = tra.length ? Math.min(...tra) : null;
         if (m != null && m >= 18 && m <= 42) { a.r = 1; cambiato = true; await accodaPush(env, { titolo: "⏰ Si parte tra poco", testo: `«${nomeS}» (${n} giocat${n === 1 ? "a" : "e"}): la prima partita inizia tra ${Math.round(m)} minuti. Controlla infortuni e quintetti.`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("promemoria " + r.id); }
+      }
+      // 1c) formazione ufficiale: quando ESPN pubblica i quintetti (entro 90 minuti dall'inizio), si avvisa per i giocatori della schedina
+      if (preIds.size && r.legs.some((l) => l.pid && preIds.has(String(l.g)))) {
+        a.f ||= {};
+        for (const gid of [...new Set(r.legs.filter((l) => l.pid && preIds.has(String(l.g))).map((l) => String(l.g)))]) {
+          if (a.f[gid]) continue;
+          const pp = g.partite.find((p) => String(p.id) === gid), m = pp ? (Date.parse(pp.iso) - Date.now()) / 60000 : null; if (m == null || m > 90 || m < -5) continue;
+          const Q = (cache["q" + gid] ||= await caricaQuintetti(gid).catch(() => null)); if (!Q || !Q.pubblicato) continue;
+          const mie = r.legs.filter((l) => l.pid && String(l.g) === gid && l.nome), visti = new Set();
+          const righe = mie.filter((l) => !visti.has(l.pid) && visti.add(l.pid)).map((l) => (Q.titolari[l.pid] ? `✅ ${l.nome} titolare` : Q.presenti[l.pid] ? `⚠️ ${l.nome} parte dalla panchina` : `❓ ${l.nome} non è nell'elenco`));
+          a.f[gid] = 1; cambiato = true;
+          await accodaPush(env, { titolo: "📋 Quintetti ufficiali", testo: `${pp.casa}-${pp.trasf}: ${righe.join(" · ")} (schedina «${nomeS}»)`.slice(0, 230), url: "/#/registro" }, (sb) => sb.codice === cod); out.push("quintetti " + gid);
+        }
       }
       // 2) schedina in corso: quasi presa / presa / persa
       if (!haLive || budget <= 0) continue;
@@ -494,7 +507,10 @@ async function apiGiorno(env, ctx, offset, data = null) {
   if (!stat.players.length) salute.push({ liv: "err", t: "Statistiche dei giocatori non disponibili: mancano giocatori e giocate sui giocatori." });
   if (errori.some((e) => e.startsWith("infortuni"))) salute.push({ liv: "warn", t: "Infortuni non disponibili: controlla gli assenti prima di giocare." });
   if (dbOk(env)) {
-    if (stat.players.length && !fm.n) salute.push({ liv: "warn", t: "Forma recente dei giocatori non ancora caricata: le stime usano la media stagione." });
+    const ultF = fm.stato && fm.stato.ultimo ? Date.parse(fm.stato.ultimo) : 0, errF = fm.stato && fm.stato.errore ? ` Ultimo errore: ${String(fm.stato.errore).slice(0, 110)}.` : "";
+    // se la forma manca o è vecchia, si prova a caricarla subito (senza aspettare il cron), al massimo una volta ogni 10 minuti
+    if (stat.players.length && (!fm.n || Date.now() - ultF > 3 * 3600e3) && Date.now() - ultF > 10 * 60e3) ctx.waitUntil(aggiornaForma(env).catch(() => {}));
+    if (stat.players.length && !fm.n) salute.push({ liv: "warn", t: "Forma recente dei giocatori non ancora caricata: le stime usano la media stagione. Sto provando a caricarla ora, riapri tra un minuto." + errF });
     else if (fm.stato && fm.stato.ultimo && Date.now() - Date.parse(fm.stato.ultimo) > 5 * 3600e3) salute.push({ liv: "warn", t: "Forma recente dei giocatori non aggiornata da più di 5 ore." });
     if (fm.errore) salute.push({ liv: "warn", t: "Database non raggiungibile: Storico e forma potrebbero mancare." });
   } else salute.push({ liv: "warn", t: "Database Supabase non collegato: Storico e forma recente non attivi." });

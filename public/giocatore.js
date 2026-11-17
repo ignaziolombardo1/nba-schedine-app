@@ -253,6 +253,13 @@ async function vistaStudio(id, force) {
     return [p.casa, p.trasf].map((sq) => { const v = l.filter((x) => x.squadra === sq); return v.length ? `<div class="sub lg">${logo(sq, 20)}<b>${esc(T(D, sq).n)}</b></div>` + v.map((x) => cardPick(x) + `<div class="cap">${esc(x.motivo)}</div>`).join("") : ""; }).join("");
   };
   $("#stc").innerHTML = contStudio(stt);
+  if (p.stato === "post") { // a fine partita le giocate sui giocatori diventano verdi o rosse
+    const pl = picks.filter((x) => ["Punti", "Rimbalzi", "Assist"].includes(x.tipo)).slice(0, 24);
+    if (pl.length) fetch("/api/valuta-giocate", { method: "POST", body: JSON.stringify({ legs: pl.map(legDa) }) }).then((r) => r.json()).then((j) => {
+      (j.esiti || []).forEach((e, i) => { if (pl[i] && (e.esito === 0 || e.esito === 1)) ESPL.set(pl[i].id, e.esito); });
+      const el = $("#stc"); if (el) el.innerHTML = contStudio(ls.get("studioTab", "p") in gruppi ? ls.get("studioTab", "p") : "p");
+    }).catch(() => {});
+  }
   APP.querySelectorAll("[data-stt]").forEach((b) => b.onclick = () => { ls.set("studioTab", b.dataset.stt); APP.querySelectorAll("[data-stt]").forEach((x) => x.classList.toggle("on", x === b)); $("#stc").innerHTML = contStudio(b.dataset.stt); });
   aggiornaTot(r);
   $("#lt").oninput = (e) => { ls.set("L_tot_" + id, e.target.value); aggiornaTot(r); };
