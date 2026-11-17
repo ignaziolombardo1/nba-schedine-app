@@ -360,3 +360,6 @@ html.divano .card.inlive .tn{font-size:20px}
 html.divano .lvdet .fz,html.divano .lvdet .sub,html.divano .lvdet .seg{font-size:18px}
 html.divano .qr span{font-size:16px}
 html.divano .riga.s,html.divano .cap{font-size:16px}
+
+/* v113 */
+@media print{nav,#miabar,.top,.noprint{display:none!important}html,body{background:#fff!important;color:#000!important}.card{background:#fff!important;border:1px solid #ccc!important;box-shadow:none!important;color:#000!important}.s,.cap,.tile span{color:#444!important}}

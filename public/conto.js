@@ -105,7 +105,7 @@ function bindRegistro() {
       const q = parseFloat(String(f.querySelector("[data-q]").value).replace(",", ".")), p = parseFloat(String(f.querySelector("[data-p]").value).replace(",", "."));
       if (!(q > 1) || !(p > 0)) { f.querySelector("[data-ok]").textContent = "Inserisci quota (maggiore di 1) e puntata"; return; }
       if (!controllaBudget(p)) return;
-      const r = ls.get("registro", []); r.unshift({ ...o, quota: q, puntata: p, data: new Date().toISOString().slice(0, 10), esito: null }); ls.set("registro", r);
+      const r = ls.get("registro", []); r.unshift({ ...o, ptf: portafoglioAttuale(), quota: q, puntata: p, data: new Date().toISOString().slice(0, 10), esito: null }); ls.set("registro", r);
       b.innerHTML = `<i class="ti ti-check"></i> Nel registro`; f.style.display = "none";
     };
   });
@@ -249,6 +249,7 @@ async function vistaConto() {
       (mm.length ? mm.map((m) => `<div class="riga rg"><span>${m.tipo === "dep" ? "Ricarica" : "Prelievo"} · ${esc(nomeGiorno(String(m.data).slice(0, 10)))}</span><span><b style="color:${m.tipo === "dep" ? GR : AM}">${m.tipo === "dep" ? "+" : "-"}${euro(m.importo)}</b> <button class="chipbtn" data-dm="${esc(m.id)}" style="padding:2px 9px;font-size:11px">Togli</button></span></div>`).join("") : `<div class="cap" style="margin:8px 0 0">Nessun movimento in questo mese. Scrivi quanto hai caricato sul conto di gioco: il saldo lo calcola l'app.</div>`) + `</div>`;
     if (chiuse.length >= 2 || mr.some((r) => r.es)) h += meseDettaglio(mr, chiuse, incasso);
     h += `<h2>Cosa hai giocato</h2>` + (mr.length ? perGiornata(mr.map((r) => ({ r })), ({ r }) => `<div class="card" style="padding:10px 12px"><div class="riga" style="align-items:flex-start;gap:10px"><div style="min-width:0"><b>${esc(r.nome)}</b><div class="s">quota ${r.quota} · ${euro(+r.puntata)}${r.esito === 1 ? ` · <b style="color:${GR}">vinta ${euro(incasso(r))}</b>` : r.esito === 0 ? ` · <b style="color:${RD}">persa</b>` : " · in corso"}</div></div></div><div class="s" style="line-height:1.4;margin-top:4px">${esc(r.testo || "")}</div>${dettaglioLegs(r)}</div>`) + `<div class="cap" style="text-align:center"><a href="#/registro" style="color:${OR}">Apri il registro per modificare o togliere una giocata</a></div>` : `<div class="vuoto">Nessuna schedina in questo mese. Quando ne giochi una dall'app, la trovi qui con quota, puntata e risultato.</div>`);
+    h += hubStrumenti();
     h += `<div class="cap" style="text-align:center;margin-top:14px"><a href="#/calcolatore" style="color:${OR}"><i class="ti ti-calculator"></i> Calcolatore</a> &nbsp;·&nbsp; <a href="#/impostazioni" style="color:${OR}"><i class="ti ti-settings"></i> Impostazioni</a> &nbsp;·&nbsp; <a href="#/diag" style="color:${OR}"><i class="ti ti-stethoscope"></i> Controllo dati</a></div>`;
     APP.innerHTML = h;
     APP.querySelectorAll("[data-ms]").forEach((b) => b.onclick = () => { if (b.disabled) return; ym = spostaMese(ym, +b.dataset.ms); disegna(); });

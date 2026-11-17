@@ -78,7 +78,7 @@ async function vistaMia() {
       const qq = parseFloat(String(mq.value).replace(",", ".")), pu = parseFloat(String($("#miap").value).replace(",", "."));
       if (!(qq > 1) || !(pu > 0)) { $("#miaok").textContent = "Scrivi la quota (maggiore di 1) e la puntata"; return; }
       if (!controllaBudget(pu)) return;
-      const r = ls.get("registro", []); r.unshift({ id: "mia|" + Date.now(), chiave: null, nome: `La mia schedina (${L.length})`, testo: L.map((l) => l.testo).join(" + "), tipo: "Schedina", prob: p, quota: qq, puntata: pu, data: new Date().toISOString().slice(0, 10), esito: null, legs: L });
+      const r = ls.get("registro", []); r.unshift({ ptf: portafoglioAttuale(), id: "mia|" + Date.now(), chiave: null, nome: `La mia schedina (${L.length})`, testo: L.map((l) => l.testo).join(" + "), tipo: "Schedina", prob: p, quota: qq, puntata: pu, data: new Date().toISOString().slice(0, 10), esito: null, legs: L });
       ls.set("registro", r); ls.set("mia", []); barraMia(); location.hash = "#/live";
     };
   };
@@ -147,6 +147,7 @@ async function vistaSchedine(force) {
   let D; try { D = await dati(force); } catch (e) { APP.innerHTML = topBar() + giorniChips() + errBox(e); bindGiorni(); return; }
   let h = topBar(D) + giorniChips();
   const sc = D.schedine || [];
+  h += `<a class="btn" href="#/costruisci" style="display:block;text-align:center;margin:0 0 10px"><i class="ti ti-wand"></i> Costruisci una schedina passo passo</a>`;
   h += `<div class="cap" style="margin-top:0">Quota = quota giusta calcolata dalle probabilità: il tuo bookmaker ne paga un po' meno. Stime del modello, nessuna schedina è sicura.</div>`;
   if (!sc.length) h += `<div class="vuoto">Per questo giorno non ci sono abbastanza partite da giocare o giocate sopra la soglia. Le proposte compaiono prima dell'inizio delle partite.</div>`;
   h += sc.map(cardSchedina).join("");

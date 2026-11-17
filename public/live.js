@@ -86,7 +86,7 @@ function mieGiocateLive(D) {
     const a = avanzamentoLeg(l, D), c = col[a.st] || MU, pr = a.soglia > 0 && a.cur != null ? Math.max(0, Math.min(100, (a.cur / a.soglia) * 100)) : 0;
     const ic = a.st === "ok" ? "ti-circle-check-filled" : a.st === "no" ? "ti-circle-x-filled" : "ti-circle-dashed";
     return `<div style="margin-top:10px"><div class="riga" style="gap:8px"><div style="min-width:0;flex:1"><i class="ti ${ic}" style="color:${c}"></i> ${esc(l.testo)}</div><b style="color:${c};white-space:nowrap">${esc(a.testo)}</b></div>${a.soglia > 0 ? `<div class="bar" style="height:4px;margin-top:4px"><div style="width:${pr}%;background:${c}"></div></div>` : ""}${a.p ? `<div class="s" style="margin-top:2px">${esc(a.p.dettaglio || "")}${a.pf >= 4 ? ` · <b style="color:${AM}">${a.pf} falli</b>` : ""}${a.proj != null && a.soglia > 0 ? ` · stima finale <b style="color:${(a.proj > a.soglia) === (l.dir !== "under") ? GR : AM}">${a.proj}</b> ${(a.proj > a.soglia) === (l.dir !== "under") ? "(sopra la linea)" : "(sotto la linea)"}` : ""}</div>` : ""}</div>`;
-  }).join("")) + `</div>`).join("");
+  }).join("")) + cashoutHtml(r, D) + `</div>`).join("");
 }
 const bloccoLive = {};
 let ultimoLive = null;

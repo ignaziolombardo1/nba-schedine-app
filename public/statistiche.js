@@ -14,7 +14,7 @@ function vistaStatistiche() {
   h += `<div class="cap" style="margin-top:6px">${Math.abs(dif) < 0.05 ? "Il modello è in linea con i tuoi risultati." : dif < 0 ? `Stai centrando il ${Math.round(-dif * 100)}% in meno di quanto previsto: conviene fidarsi meno delle probabilità alte.` : `Stai centrando il ${Math.round(dif * 100)}% in più di quanto previsto: il modello è prudente.`}</div>`;
   const fasce = ["Sotto il 40%", "40-60%", "60-80%", "Oltre l'80%"], f = (p) => (p < 0.4 ? fasce[0] : p < 0.6 ? fasce[1] : p < 0.8 ? fasce[2] : fasce[3]);
   h += sezione("Per probabilità prevista", gruppo((r) => (r.prob ? f(r.prob) : null)), fasce);
-  h += graficoPagella(reg);
+  h += graficoPagella(reg) + tuVsModello(reg);
   const qf = ["Sotto 2", "Da 2 a 5", "Da 5 a 10", "Oltre 10"], q = (x) => (x < 2 ? qf[0] : x < 5 ? qf[1] : x < 10 ? qf[2] : qf[3]);
   h += sezione("Per quota", gruppo((r) => (r.quota ? q(r.quota) : null)), qf);
   h += sezione("Per tipo di giocata", gruppo((r) => r.tipo || "Altro"));

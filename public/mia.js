@@ -83,7 +83,7 @@ document.addEventListener("click", async (e) => {
   const l = PM.get(b.dataset.add); if (!l) return;
   let L = miaLeggi(); const i = L.findIndex((x) => x.id === l.id);
   if (i >= 0) L.splice(i, 1); else L.push(l);
-  ls.set("mia", L); b.classList.toggle("on", i < 0); b.textContent = i < 0 ? "✓" : "+"; barraMia(); if (location.hash.startsWith("#/mia") && window.__miaAgg) window.__miaAgg();
+  ls.set("mia", L); b.classList.toggle("on", i < 0); b.textContent = i < 0 ? "✓" : "+"; barraMia(); if ((location.hash.startsWith("#/mia") || location.hash.startsWith("#/costruisci")) && window.__miaAgg) window.__miaAgg();
 }, true);
 const ESPL = new Map(); // esiti dei giocatori a fine partita (da /api/valuta-giocate): id giocata -> 1 o 0
 // al massimo 3 etichette sulla scheda; le altre si aprono con «+N» (i colori verde e rosso restano per gli esiti reali)
