@@ -6,7 +6,7 @@ function avvisiDati(D, daCache) {
   const eta = D.aggiornato ? Math.round((Date.now() - Date.parse(D.aggiornato)) / 60000) : null;
   if (daCache) h += `<div class="avv"><i class="ti ti-refresh"></i> Dati salvati sul telefono${eta != null ? " (di " + (eta < 60 ? eta + " minuti" : Math.round(eta / 60) + " ore") + " fa)" : ""}: aggiorno…</div>`;
   else if (eta != null && eta > 60 && giorno === 0) h += `<div class="avv warn"><i class="ti ti-clock-exclamation"></i> Dati di ${Math.round(eta / 60)} ${Math.round(eta / 60) === 1 ? "ora" : "ore"} fa: non riesco ad aggiornarli. <a href="#/diag" style="text-decoration:underline">Dettagli</a></div>`;
-  for (const x of D.salute || []) h += `<div class="avv ${x.liv === "err" ? "err" : "warn"}"><i class="ti ti-alert-triangle"></i> ${esc(x.t)} <a href="#/diag" style="text-decoration:underline">Dettagli</a></div>`;
+  for (const x of (D.salute || []).filter((y) => y.liv === "err")) h += `<div class="avv ${x.liv === "err" ? "err" : "warn"}"><i class="ti ti-alert-triangle"></i> ${esc(x.t)} <a href="#/diag" style="text-decoration:underline">Dettagli</a></div>`;
   return h;
 }
 // la giocata più probabile tra quelle delle partite ancora da giocare (o la migliore in assoluto)

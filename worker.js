@@ -424,6 +424,10 @@ async function apiDiag(env) {
   let gg = null, stat = null;
   await prova("Partite di oggi (ESPN)", async () => { gg = await caricaGiorno(0); return `${gg.partite.length} partite, ${gg.ieri.length} finite ieri, ${Object.keys(gg.linee).length} linee`; });
   await prova("Statistiche squadre e giocatori", async () => { stat = await caricaStatistiche(); return stat.diag.join(" · "); });
+  await prova("Forma recente dei giocatori", async () => { if (!dbOk(env)) throw new Error("serve Supabase"); const f = await leggiForma(env), st = f.stato || {};
+    if (f.errore) throw new Error("database: " + f.errore);
+    if (!f.n) throw new Error(`nessun giocatore caricato${st.ultimo ? `; ultimo tentativo ${st.ultimo.slice(11, 16)} UTC: ${st.ok || 0} ok, ${st.falliti || 0} falliti, ${st.da_fare || 0} da fare` : "; il caricamento non è ancora partito"}${st.errore ? ". Errore: " + String(st.errore).slice(0, 140) : ""}`);
+    return `${f.n} giocatori con forma recente${st.da_fare ? `, ${st.da_fare} ancora da caricare` : ""}`; });
   await prova("Infortuni", async () => `${Object.keys(await caricaInfortuni()).length} segnalati`);
   await prova("Classifica Est/Ovest", async () => { const c = await caricaClassifica(); if (!c.Est.length || !c.Ovest.length) throw new Error(`Est ${c.Est.length} squadre, Ovest ${c.Ovest.length}: una conference è vuota`); const x = c.Est[0]; return `Est ${c.Est.length} · Ovest ${c.Ovest.length} squadre, prima a Est ${x.ab} ${x.v}-${x.p}${x.pf == null ? " (medie punti non fornite)" : ""}`; });
   await prova("Calendario prossimi giorni", async () => { const g = await caricaCalendario(romaYMD(Date.now())); if (!g.length) throw new Error("nessuna partita trovata nei prossimi 7 giorni"); return `${g.reduce((a, x) => a + x.partite.length, 0)} partite in ${g.length} giorni`; });

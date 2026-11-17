@@ -35,5 +35,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 - v101: Forma con pulsante «+» per aggiungere alla schedina (usa il consiglio Punti del giocatore se esiste); avviso push «giocatore disponibile» in `avvisiSchedine` (blocco 1, svuota `a.i` e notifica una volta). Già presenti da prima: back-to-back (`B2B_PUNTI`) e taratura per tipo (`_calib`).
 
+- v102: gli avvisi dati non gravi (forma non caricata ecc.) non compaiono più in Home, solo quelli rossi; `/#/diag` ha la voce «Forma recente dei giocatori» con ultimo errore.
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.
