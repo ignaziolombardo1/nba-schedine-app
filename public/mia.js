@@ -95,7 +95,7 @@ function esitoPick(x) {
 }
 const colEsito = (x, def) => { const e = esitoPick(x); return e === 1 ? GR : e === 0 ? RD : def; };
 const segnoEsito = (x) => { const e = esitoPick(x); return e === 1 ? "✓ " : e === 0 ? "✗ " : ""; };
-function cardPick(x) { return `<div class="card cardp" style="flex-wrap:wrap"><div style="min-width:0"><div class="s">${esc(x.partita)} · ${esc(x.tipo)}</div><div style="font-weight:500">${esc(x.testo)}${x.dubbio ? ` <span class="s" style="color:${AM}">· in dubbio ${Math.round(x.dubbio * 100)}%</span>` : ""}</div></div><div><div class="v" style="color:${colEsito(x, colProb(x.prob))}">${segnoEsito(x)}${pct(x.prob)}</div><div class="e">stima ${esc(x.stima)}</div></div>${addBtn(x)}<div class="pbar"><i style="width:${Math.round(x.prob * 100)}%;background:${colProb(x.prob)}"></i></div></div>`; }
+function cardPick(x) { return `<div class="card cardp" style="flex-wrap:wrap"><div style="min-width:0"><div class="s">${esc(x.partita)} · ${esc(x.tipo)}</div><div style="font-weight:500">${esc(x.testo)}${x.dubbio ? ` <span class="s" style="color:${AM}">· in dubbio ${Math.round(x.dubbio * 100)}%</span>` : ""}</div></div><div><div class="v" style="color:${colEsito(x, colProb(x.prob))}">${segnoEsito(x)}${pct(x.prob)}</div><div class="e">stima ${esc(x.stima)}</div></div>${addBtn(x)}<div class="pbar"><i style="width:${Math.round(x.prob * 100)}%;background:${colProb(x.prob)}"></i></div>${quotaRow(x)}</div>`; }
 function rigaPick(D, x) {
   const vis = x.pid ? foto(x.pid, 34) : x.squadra ? logo(x.squadra, 30) : `<span class="ph" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:${OR}"></i></span>`;
   return `<div class="pick">${anello(x.prob * 100, colProb(x.prob), 48)}${vis}<div style="min-width:0"><div class="t" style="color:${colEsito(x, "")}">${segnoEsito(x)}${esc(x.testo)}</div><div class="s">${esc(x.partita)}${x.dubbio ? ` · <span style="color:${AM}">in dubbio (gioca col ${Math.round(x.dubbio * 100)}%)</span>` : ""}</div></div>${addBtn(x)}</div>`;
@@ -177,7 +177,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
     const l = legDa(x), e = esitoPick(x), pt = sq === p.casa ? p.ptCasa : p.ptTr, nm = esc(T(D, sq).b);
     chips += e == null ? `<span class="chip" style="color:${GR}">${nm} over ${l.soglia} · ${pct(x.prob)}</span>` : `<span class="chip" style="color:${e ? GR : RD};font-weight:600">${nm} ${pt} ${e ? "▲" : "▼"} over ${l.soglia}</span>`;
   }
-  if (topPick) chips += `<span class="chip" style="color:${colEsito(topPick, GR)}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
+  if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, GR)}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
   if (cliccabile) {
     const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 34)}<div class="tn"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b>${esc(ab)}${stella("sq", ab)}</div></div>`;

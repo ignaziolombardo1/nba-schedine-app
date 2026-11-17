@@ -213,7 +213,9 @@ async function sincronizza(env, d) {
   const unisci = (a, b) => { const m = new Map(); for (const r of Array.isArray(a) ? a : []) if (r && r.id != null) m.set(String(r.id), r); for (const r of Array.isArray(b) ? b : []) if (r && r.id != null) { const o = m.get(String(r.id)); m.set(String(r.id), o ? fondiReg(o, r) : r); } return [...m.values()].filter((r) => !del.has(String(r.id))); };
   // le righe del telefono vengono per prime (sono le più recenti); poi quelle che c'erano solo sul server
   const registro = unisci(S.registro, d.registro).sort((a, b) => (String(a.data) < String(b.data) ? 1 : String(a.data) > String(b.data) ? -1 : 0)).slice(0, 600), mov = unisci(S.mov, d.mov).slice(0, 600);
-  const nuovo = { registro, mov, del: [...del].slice(-400), avv: S.avv || {} };
+  const nuovo = { registro, mov, del: [...del].slice(-400), avv: S.avv || {}, sera: S.sera || {}, bk: S.bk || [] };
+  // copia di sicurezza automatica: una a settimana (le ultime 3), se il registro non è enorme
+  if (registro.length >= 3 && JSON.stringify(registro).length < 150000 && (!nuovo.bk.length || Date.now() - Date.parse(nuovo.bk[0].t) > 7 * 86400e3)) nuovo.bk = [{ t: new Date().toISOString(), registro }, ...nuovo.bk].slice(0, 3);
   if (JSON.stringify(nuovo).length < 900000) await salvaRigaForma(env, pid, nuovo);
   return { registro, mov, del: nuovo.del };
 }
@@ -658,6 +660,14 @@ export default {
       if (p === "/api/push-iscrivi" && req.method === "POST") { if (!dbOk(env)) return ERR("serve Supabase", 503); await iscriviPush(env, await req.json()); return J({ ok: true }); }
       if (p === "/api/push-prova" && req.method === "POST") { const r = await pushATutti(env, "✅ Notifiche attive", "NBA Schedine ti avviserà con il riepilogo ogni mattina e i risultati a fine giornata."); return J(r); }
       if (p === "/api/ultimo-avviso") return J(await ritiraAvviso(env, url.searchParams.get("id") || ""), 0);
+      if (p === "/api/copie") { // elenco delle copie di sicurezza del registro di questo codice
+        const cod = url.searchParams.get("codice") || ""; if (!codiceOk(cod) || !dbOk(env)) return ERR("codice non valido", 400);
+        const S = await rigaForma(env, "_reg_" + cod); return J({ copie: ((S && S.bk) || []).map((b, i) => ({ i, t: b.t, n: b.registro.length })) }, 0);
+      }
+      if (p === "/api/copia") {
+        const cod = url.searchParams.get("codice") || "", i = +url.searchParams.get("i"); if (!codiceOk(cod) || !dbOk(env)) return ERR("codice non valido", 400);
+        const S = await rigaForma(env, "_reg_" + cod), b = S && S.bk && S.bk[i]; if (!b) return ERR("copia non trovata", 404); return J({ t: b.t, registro: b.registro }, 0);
+      }
       if (p === "/api/condividi" && req.method === "POST") {
         if (!dbOk(env)) return ERR("serve Supabase", 503);
         const b = await req.json(), cut = (x, n) => String(x ?? "").slice(0, n), legs = (Array.isArray(b.legs) ? b.legs : []).slice(0, 12).map((l) => ({ testo: cut(l.testo, 120), partita: cut(l.partita, 60), g: cut(l.g, 20), k: cut(l.k, 8), pid: cut(l.pid, 20), sq: cut(l.sq, 4), dir: l.dir === "under" ? "under" : "over", soglia: +l.soglia || 0 }));
