@@ -363,3 +363,10 @@ html.divano .riga.s,html.divano .cap{font-size:16px}
 
 /* v113 */
 @media print{nav,#miabar,.top,.noprint{display:none!important}html,body{background:#fff!important;color:#000!important}.card{background:#fff!important;border:1px solid #ccc!important;box-shadow:none!important;color:#000!important}.s,.cap,.tile span{color:#444!important}}
+
+/* v115 */
+.avt.cerca{border-color:var(--line);color:var(--mut);margin-right:8px}
+html.compatta .card.gm{padding:8px 10px}
+html.compatta .card.gm .cg{margin:2px 0}
+html.compatta .chip{font-size:11px;padding:2px 7px}
+html.compatta .card{margin-bottom:6px}

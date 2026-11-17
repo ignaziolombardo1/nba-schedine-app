@@ -1,7 +1,7 @@
 // NBA Schedine - app.js (parte dell'app: i file si caricano in ordine da index.html, vedi CLAUDE.md)
 "use strict";
 // Versione dell'app: alzala a ogni modifica a public/ (insieme al nome cache in sw.js)
-const VERSIONE = "114";
+const VERSIONE = "115";
 // ---------- router
 let timer = null;
 function route(force) {
@@ -70,5 +70,6 @@ window.addEventListener("pagehide", salvaPosizione);
 let ripristinaY = null;
 { const u = ls.get("ult", null); if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/") && u.h && u.h !== "#/") { location.hash = u.h; ripristinaY = u.y; } else if (u && Date.now() - u.t < 30 * 60000 && (!location.hash || location.hash === "#/")) ripristinaY = u.y; }
 route();
-applicaAspetto(); applicaNotte(); applicaDivano(); applicaProfilo(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
+applicaAspetto(); applicaNotte(); applicaDivano(); applicaDensita(); applicaProfilo(); aggiornaBadge(); setTimeout(() => { sincReg(); aggiornaRegistro(); sincPref(); }, 2500);
+setTimeout(() => { try { festeggia(); } catch {} }, 3500);
 if (ripristinaY) for (const ms of [500, 1200, 2500]) setTimeout(() => window.scrollTo(0, ripristinaY), ms);

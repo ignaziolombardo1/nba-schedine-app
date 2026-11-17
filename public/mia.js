@@ -110,7 +110,7 @@ function rigaPick(D, x) {
 function topBar(D) {
   const ora = D && D.aggiornato ? new Date(D.aggiornato).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "";
   const pf = ls.get("profilo", null), av = pf && pf.sq ? logo(pf.sq, 24) : `<i class="ti ti-user"></i>`;
-  return `<div class="top"><img class="logo" src="/icon-192.png" alt=""><div class="tt"><div class="nome">NBA Schedine</div>${ora ? `<div class="s">agg. ${ora}</div>` : ""}</div><a class="avt" href="#/profilo" aria-label="Il mio profilo">${av}</a></div>`;
+  return `<div class="top"><img class="logo" src="/icon-192.png" alt=""><div class="tt"><div class="nome">NBA Schedine</div>${ora ? `<div class="s">agg. ${ora}</div>` : ""}</div><a class="avt cerca" href="#/comandi" aria-label="Cerca"><i class="ti ti-search"></i></a><a class="avt" href="#/profilo" aria-label="Il mio profilo">${av}</a></div>`;
 }
 const GS = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"], MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const fmtET = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" });

@@ -174,12 +174,17 @@ async function inviaUnPush(env, sub, k) {
 const idSub = async (ep) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ep)))].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
 // mette l'avviso nella coda dei dispositivi scelti e manda a ognuno un push senza testo: il telefono ritira il suo messaggio da /api/ultimo-avviso?id=...
 const vuole = (sb, cat) => !cat || !sb.pref || !sb.pref.nt || sb.pref.nt[cat] !== 0;
+// silenzio durante il turno di lavoro: gli avvisi non partono, si raccolgono e arrivano in un solo messaggio a fine turno
+const minRoma = () => { const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()); return (+p.find((x) => x.type === "hour").value % 24) * 60 + +p.find((x) => x.type === "minute").value; };
+const inSilenzio = (sb) => { const s = sb.pref && sb.pref.sil; if (!s) return false; const m = (t) => +t.slice(0, 2) * 60 + +t.slice(3), a = m(s.da), b = m(s.a), n = minRoma(); return a === b ? false : a < b ? n >= a && n < b : n >= a || n < b; };
 async function accodaPush(env, msg, filtro = () => true) {
   if (!dbOk(env)) return { inviati: 0 };
   const el = (await rigaForma(env, "_push")) || { subs: [] };
   if (!el.subs.length) return { inviati: 0 };
-  const dest = []; for (const sb of el.subs) { sb.id ||= await idSub(sb.endpoint); if (filtro(sb) && vuole(sb, msg.cat)) dest.push(sb); }
-  if (!dest.length) return { inviati: 0 };
+  const dest = []; let tenuti = 0;
+  for (const sb of el.subs) { sb.id ||= await idSub(sb.endpoint); if (filtro(sb) && vuole(sb, msg.cat)) { if (!msg.forza && inSilenzio(sb)) { sb.dig = [...(sb.dig || []), { titolo: msg.titolo, testo: msg.testo, t: new Date().toISOString() }].slice(-12); tenuti++; } else dest.push(sb); } }
+  if (tenuti) await salvaRigaForma(env, "_push", el);
+  if (!dest.length) return { inviati: 0, tenuti };
   const m = { ...msg, t: new Date().toISOString() }, lim = Date.now() - 6 * 3600e3, coda = (await rigaForma(env, "_coda")) || {};
   for (const sb of dest) coda[sb.id] = [...(coda[sb.id] || []).filter((x) => Date.parse(x.t) > lim), m].slice(-8);
   await salvaRigaForma(env, "_coda", coda);
@@ -199,7 +204,7 @@ async function iscriviPush(env, sub) {
 // i preferiti di ogni telefono, per avvisare solo di quello che segue
 async function salvaPrefPush(env, d) {
   const el = (await rigaForma(env, "_push")) || { subs: [] }, sb = el.subs.find((x) => x.endpoint === (d || {}).endpoint); if (!sb) return false;
-  const P = d.pref || {}; sb.pref = { gm: (P.gm || []).slice(0, 40).filter((x) => /^\d+$/.test(String(x))).map(String), sq: (P.sq || []).slice(0, 30).map(String), pl: (P.pl || []).slice(0, 30).map((x) => ({ pid: String(x.pid), nome: String(x.nome || ""), sq: String(x.sq || "") })), nt: { gg: (P.nt || {}).gg === 0 ? 0 : 1, pr: (P.nt || {}).pr === 0 ? 0 : 1, sc: (P.nt || {}).sc === 0 ? 0 : 1 } };
+  const P = d.pref || {}; sb.pref = { gm: (P.gm || []).slice(0, 40).filter((x) => /^\d+$/.test(String(x))).map(String), sq: (P.sq || []).slice(0, 30).map(String), pl: (P.pl || []).slice(0, 30).map((x) => ({ pid: String(x.pid), nome: String(x.nome || ""), sq: String(x.sq || "") })), nt: { gg: (P.nt || {}).gg === 0 ? 0 : 1, pr: (P.nt || {}).pr === 0 ? 0 : 1, sc: (P.nt || {}).sc === 0 ? 0 : 1 }, sil: P.sil && P.sil.on && /^\d\d:\d\d$/.test(String(P.sil.da)) && /^\d\d:\d\d$/.test(String(P.sil.a)) ? { da: String(P.sil.da), a: String(P.sil.a) } : null };
   if (codiceOk(d.codice)) sb.codice = d.codice;
   await salvaRigaForma(env, "_push", el); return true;
 }
@@ -345,10 +350,22 @@ async function inviaRiepilogo(env, off) {
   await avvisa(env, `🏀 Le giocate di ${quando}`, t, `${gdg ? "⭐ " + gdg.testo + " " + pc(gdg.prob) + " · " : ""}${pre.length} partite · ${sch.length ? "schedine quota " + sch.map((x) => x.obiettivo).join(", ") + " pronte" : "migliori giocate pronte"}`);
 }
 
+// a fine turno: un solo messaggio con quello che è successo mentre il telefono era in silenzio
+async function consegnaDigest(env) {
+  const el = await rigaForma(env, "_push"); if (!el || !el.subs) return;
+  const pronti = el.subs.filter((sb) => sb.dig && sb.dig.length && !inSilenzio(sb)); if (!pronti.length) return;
+  const dig = new Map(pronti.map((sb) => [sb.id, sb.dig])); for (const sb of pronti) sb.dig = [];
+  await salvaRigaForma(env, "_push", el);
+  for (const [id, l] of dig) {
+    const righe = l.slice(-3).map((x) => x.testo || x.titolo), piu = l.length > 3 ? ` (+${l.length - 3} altri)` : "";
+    await accodaPush(env, { titolo: `Mentre eri al lavoro: ${l.length} ${l.length === 1 ? "avviso" : "avvisi"}`, testo: righe.join(" · ") + piu, url: "/#/live", forza: true }, (sb) => sb.id === id);
+  }
+}
 async function cronAvvisi(env) {
   if (!dbOk(env)) return { saltato: "serve Supabase" };
   const conTelegram = env.TELEGRAM_TOKEN && env.TELEGRAM_CHAT_ID, conPush = ((await rigaForma(env, "_push").catch(() => null)) || { subs: [] }).subs.length > 0;
   if (!conTelegram && !conPush) return { saltato: "nessun canale attivo: attiva le notifiche nell'app o imposta Telegram" };
+  await consegnaDigest(env).catch(() => {});
   const g = await caricaGiorno(0, null, 60), ymd = romaYMD(Date.now()), ora = Date.now();
   if (!g.partite.length) return { saltato: "nessuna partita" };
   const f = await leggiForma(env), stato = f.avvisi || {}, oggi = stato[ymd] || {}, fatto = [];

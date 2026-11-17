@@ -76,7 +76,7 @@ function riquadriConsigli(D) {
   }).join("") + `</div>`;
 }
 // ---------- PREFERITI (squadre e giocatori seguiti, salvati sul telefono)
-const pref = () => { const v = ls.get("pref", null); const nt = { gg: 1, pr: 1, sc: 1, ...((v && v.nt) || {}) }; return v && v.sq && v.pl ? { sq: v.sq, pl: v.pl, gm: v.gm || [], nt } : { sq: [], pl: [], gm: [], nt }; };
+const pref = () => { const v = ls.get("pref", null); const nt = { gg: 1, pr: 1, sc: 1, ...((v && v.nt) || {}) }; return v && v.sq && v.pl ? { sq: v.sq, pl: v.pl, gm: v.gm || [], nt, sil: v.sil || null } : { sq: [], pl: [], gm: [], nt, sil: (v && v.sil) || null }; };
 const siSegue = (t, id) => pref()[t].some((x) => (t === "sq" || t === "gm" ? x : x.pid) === id);
 // campanella: avviso di inizio e fine per questa partita
 const campana = (id) => { const on = siSegue("gm", String(id)); return `<button class="star bell${on ? " on" : ""}" data-fav="gm|${esc(id)}||" aria-label="${on ? "Non avvisarmi" : "Avvisami per questa partita"}">${on ? "🔔" : "🔕"}</button>`; };
@@ -130,9 +130,9 @@ function disegnaPartite(D, conPoll, daCache) {
   let h = topBar(D) + rigaEsplora() + giorniChips();
   if (!D.partite.length) h += `<div class="vuoto">Nessuna partita trovata per questo giorno. Prova un altro giorno.</div>`;
   h += avvisiDati(D, daCache);
-  h += bannerErrore(D) + avvisoBudget() + bannerRadar(D) + riepilogoAperte(D) + giocataDelGiorno(D);
-  { const m = confrontoMercato(D); if (m) h += `<details class="dt"><summary>Confronto con i bookmaker</summary>${m}</details>`; }
-  if (D.partite.length) h += riquadroPreferiti(D);
+  h += bannerErrore(D) + (homeOn("budget") ? avvisoBudget() : "") + (homeOn("radar") ? bannerRadar(D) : "") + (homeOn("aperte") ? riepilogoAperte(D) : "") + (homeOn("giorno") ? giocataDelGiorno(D) : "");
+  if (homeOn("mercato")) { const m = confrontoMercato(D); if (m) h += `<details class="dt"><summary>Confronto con i bookmaker</summary>${m}</details>`; }
+  if (D.partite.length && homeOn("pref")) h += riquadroPreferiti(D);
   h += `<div id="hnews"></div>`;
   for (const [t, st] of [["In corso", "in"], ["Da giocare", "pre"], ["Finite", "post"]]) {
     const l = D.partite.filter((p) => p.stato === st).sort((a, b) => partitaPreferita(b) - partitaPreferita(a)); if (!l.length) continue;
@@ -142,7 +142,7 @@ function disegnaPartite(D, conPoll, daCache) {
     h += `<details class="dt"><summary>Risultati di ieri (${D.ieri.length})</summary>` + D.ieri.map((p) => `<div class="card"><div class="riga"><div class="lg">${logo(p.trasf, 28)}<b>${esc(p.trasf)}</b></div><b style="font-size:18px">${p.ptTr} - ${p.ptCasa}</b><div class="lg"><b>${esc(p.casa)}</b>${logo(p.casa, 28)}</div></div></div>`).join("") + `</details>`;
   }
   h += `<button class="btn" id="agg"><i class="ti ti-refresh"></i> Aggiorna ora</button>`;
-  APP.innerHTML = h; bindGiorni(); $("#agg").onclick = () => route(true); notizieHome(); coloraGiocatoriHome(D);
+  APP.innerHTML = h; bindGiorni(); $("#agg").onclick = () => route(true); if (homeOn("news")) notizieHome(); coloraGiocatoriHome(D);
   if (conPoll) seguiPunteggi(D);
   if (D.erroreAgg) { clearTimeout(timer); timer = setTimeout(() => { if ((location.hash.replace(/^#/, "") || "/") === "/") route(true); }, 25000); }
 }
