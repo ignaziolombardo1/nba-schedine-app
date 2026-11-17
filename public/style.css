@@ -341,3 +341,10 @@ html.chiaro .pwy .why{color:#3a4254}
 .pwy .fa .v{font-weight:700;text-align:right}.pwy .up{color:#3ddc84}.pwy .dn{color:#ff5d5d}.pwy .no{color:var(--mut)}
 /* v107: nelle schede Home resta solo il logo davanti (la sigla sta dietro) */
 .cg .cl .tl,.cg .cl .tlf{width:42px!important;height:42px!important}
+/* v108: logo al centro della sua metà, sigla in contorno centrata dietro, badge 1/2 sull'angolo esterno del logo */
+.cg>.tm{position:relative;display:flex;align-items:center;justify-content:center;min-height:62px}
+.cg .wmk{left:0;right:0;width:auto;top:50%;text-align:center;clip-path:none;z-index:0;max-width:100%;overflow:hidden}
+.cg .cl{position:relative;z-index:1;flex-direction:row;justify-content:center;overflow:visible}
+.cg .cl .tn{position:absolute;top:-8px;padding:0;display:block;overflow:visible}
+.cg .cl.ca .tn{left:calc(50% - 34px)}.cg .cl.tr .tn{left:calc(50% + 16px)}
+.cg .cl .n12{margin:0}

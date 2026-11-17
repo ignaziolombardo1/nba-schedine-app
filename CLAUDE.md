@@ -47,5 +47,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 - v107: nelle schede Home sparisce il testo della sigla accanto al logo (resta solo la sigla in contorno dietro e il badge 1/2); logo a 42 px.
 
+- v108: schede Home con logo al centro della sua metà, sigla in contorno centrata dietro (`.wmk` dentro `.tm`) e badge 1/2 sull'angolo del logo. Notifiche: riepilogo di domani alle 9 (`inviaRiepilogo(env, off)`, blocco 1a di `cronAvvisi`, flag `stato[ymd+1].d`: 1 inviato, 2 nessuna partita); promemoria 20-40 min prima delle partite seguite (`oggi.p`); interruttori per categoria nel Profilo (`pref.nt.gg/pr/sc`, filtro `vuole` in `accodaPush`, campo `cat` nei messaggi: gg riepilogo, pr partite seguite, sc schedine).
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

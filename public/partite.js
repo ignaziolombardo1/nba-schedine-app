@@ -76,7 +76,7 @@ function riquadriConsigli(D) {
   }).join("") + `</div>`;
 }
 // ---------- PREFERITI (squadre e giocatori seguiti, salvati sul telefono)
-const pref = () => { const v = ls.get("pref", null); return v && v.sq && v.pl ? { sq: v.sq, pl: v.pl, gm: v.gm || [] } : { sq: [], pl: [], gm: [] }; };
+const pref = () => { const v = ls.get("pref", null); const nt = { gg: 1, pr: 1, sc: 1, ...((v && v.nt) || {}) }; return v && v.sq && v.pl ? { sq: v.sq, pl: v.pl, gm: v.gm || [], nt } : { sq: [], pl: [], gm: [], nt }; };
 const siSegue = (t, id) => pref()[t].some((x) => (t === "sq" || t === "gm" ? x : x.pid) === id);
 // campanella: avviso di inizio e fine per questa partita
 const campana = (id) => { const on = siSegue("gm", String(id)); return `<button class="star bell${on ? " on" : ""}" data-fav="gm|${esc(id)}||" aria-label="${on ? "Non avvisarmi" : "Avvisami per questa partita"}">${on ? "🔔" : "🔕"}</button>`; };
@@ -92,13 +92,13 @@ function riquadroPreferiti(D) {
 }
 // manda al server i preferiti di questo telefono (solo se le notifiche sono attive) per avvisare di ciò che segui
 // se il telefono non è ancora collegato alle notifiche, lo dice (una volta per apertura)
-async function avvisoNotifiche() {
+async function avvisoNotifiche(msg) {
   try {
     const reg = "serviceWorker" in navigator && "PushManager" in window ? await navigator.serviceWorker.ready : null, sb = reg ? await reg.pushManager.getSubscription() : null;
-    if (sb) return;
     if (document.getElementById("avnot")) return;
+    if (sb && !msg) return;
     const d = document.createElement("div"); d.id = "avnot"; d.className = "toastn";
-    d.innerHTML = `Per ricevere l'avviso attiva le notifiche: <a href="#/impostazioni" style="color:var(--or)">Impostazioni</a>`; document.body.appendChild(d); setTimeout(() => d.remove(), 6000);
+    d.innerHTML = sb ? msg : `Per ricevere gli avvisi attiva le notifiche: <a href="#/impostazioni" style="color:var(--or)">Impostazioni</a>`; document.body.appendChild(d); setTimeout(() => d.remove(), sb ? 3800 : 6000);
   } catch {}
 }
 

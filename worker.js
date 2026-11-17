@@ -173,11 +173,12 @@ async function inviaUnPush(env, sub, k) {
 // manda a tutti gli iscritti un avviso senza testo; il telefono scarica il testo da /api/ultimo-avviso e lo mostra
 const idSub = async (ep) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ep)))].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
 // mette l'avviso nella coda dei dispositivi scelti e manda a ognuno un push senza testo: il telefono ritira il suo messaggio da /api/ultimo-avviso?id=...
+const vuole = (sb, cat) => !cat || !sb.pref || !sb.pref.nt || sb.pref.nt[cat] !== 0;
 async function accodaPush(env, msg, filtro = () => true) {
   if (!dbOk(env)) return { inviati: 0 };
   const el = (await rigaForma(env, "_push")) || { subs: [] };
   if (!el.subs.length) return { inviati: 0 };
-  const dest = []; for (const sb of el.subs) { sb.id ||= await idSub(sb.endpoint); if (filtro(sb)) dest.push(sb); }
+  const dest = []; for (const sb of el.subs) { sb.id ||= await idSub(sb.endpoint); if (filtro(sb) && vuole(sb, msg.cat)) dest.push(sb); }
   if (!dest.length) return { inviati: 0 };
   const m = { ...msg, t: new Date().toISOString() }, lim = Date.now() - 6 * 3600e3, coda = (await rigaForma(env, "_coda")) || {};
   for (const sb of dest) coda[sb.id] = [...(coda[sb.id] || []).filter((x) => Date.parse(x.t) > lim), m].slice(-8);
@@ -188,7 +189,7 @@ async function accodaPush(env, msg, filtro = () => true) {
   el.subs = el.subs.filter((x) => !morti.has(x.endpoint)); await salvaRigaForma(env, "_push", el);
   return { inviati: esiti.filter((x) => x >= 200 && x < 300).length, esiti };
 }
-const pushATutti = (env, titolo, testo, url = "/#/schedine") => accodaPush(env, { titolo, testo, url });
+const pushATutti = (env, titolo, testo, url = "/#/schedine", cat) => accodaPush(env, { titolo, testo, url, cat });
 async function iscriviPush(env, sub) {
   if (!sub || !/^https:\/\//.test(sub.endpoint || "")) throw new Error("iscrizione non valida");
   const el = (await rigaForma(env, "_push")) || { subs: [] }, vecchio = el.subs.find((x) => x.endpoint === sub.endpoint);
@@ -198,7 +199,7 @@ async function iscriviPush(env, sub) {
 // i preferiti di ogni telefono, per avvisare solo di quello che segue
 async function salvaPrefPush(env, d) {
   const el = (await rigaForma(env, "_push")) || { subs: [] }, sb = el.subs.find((x) => x.endpoint === (d || {}).endpoint); if (!sb) return false;
-  const P = d.pref || {}; sb.pref = { gm: (P.gm || []).slice(0, 40).filter((x) => /^\d+$/.test(String(x))).map(String), sq: (P.sq || []).slice(0, 30).map(String), pl: (P.pl || []).slice(0, 30).map((x) => ({ pid: String(x.pid), nome: String(x.nome || ""), sq: String(x.sq || "") })) };
+  const P = d.pref || {}; sb.pref = { gm: (P.gm || []).slice(0, 40).filter((x) => /^\d+$/.test(String(x))).map(String), sq: (P.sq || []).slice(0, 30).map(String), pl: (P.pl || []).slice(0, 30).map((x) => ({ pid: String(x.pid), nome: String(x.nome || ""), sq: String(x.sq || "") })), nt: { gg: (P.nt || {}).gg === 0 ? 0 : 1, pr: (P.nt || {}).pr === 0 ? 0 : 1, sc: (P.nt || {}).sc === 0 ? 0 : 1 } };
   if (codiceOk(d.codice)) sb.codice = d.codice;
   await salvaRigaForma(env, "_push", el); return true;
 }
@@ -240,17 +241,17 @@ async function avvisiSchedine(env, g) {
           if (!i || i.grado > 0.5) { // era segnalato fuori o in dubbio e ora non lo è più: avviso di rientro (solo se l'elenco infortuni è stato letto)
             const ks = Object.keys(a.i || {}).filter((k) => k.startsWith(l.pid + ":"));
             if (ks.length && Object.keys(inf).length) { ks.forEach((k) => delete a.i[k]); cambiato = true;
-              await accodaPush(env, { titolo: "✅ Giocatore disponibile", testo: `${l.nome} non risulta più fuori o in dubbio: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("rientro " + l.nome); }
+              await accodaPush(env, { cat: "sc", titolo: "✅ Giocatore disponibile", testo: `${l.nome} non risulta più fuori o in dubbio: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("rientro " + l.nome); }
             continue; }
           const k = `${l.pid}:${i.stato}`; a.i ||= {}; if (a.i[k]) continue; a.i[k] = 1; cambiato = true;
-          await accodaPush(env, { titolo: i.stato === "out" ? "⚠️ Giocatore fuori" : "⚠️ Giocatore in dubbio", testo: `${l.nome} è ${i.stato === "out" ? "fuori" : "in dubbio"}${i.etichetta ? " (" + i.etichetta + ")" : ""}: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("infortunio " + l.pid);
+          await accodaPush(env, { cat: "sc", titolo: i.stato === "out" ? "⚠️ Giocatore fuori" : "⚠️ Giocatore in dubbio", testo: `${l.nome} è ${i.stato === "out" ? "fuori" : "in dubbio"}${i.etichetta ? " (" + i.etichetta + ")" : ""}: è nella schedina «${nomeS}»`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("infortunio " + l.pid);
         }
       }
       // 1b) promemoria: la prima partita della schedina inizia tra 20 e 40 minuti
       if (!a.r && preIds.size) {
         const tra = r.legs.map((l) => g.partite.find((p) => p.stato === "pre" && String(p.id) === String(l.g))).filter(Boolean).map((p) => (Date.parse(p.iso) - Date.now()) / 60000).filter((m) => m > 0);
         const m = tra.length ? Math.min(...tra) : null;
-        if (m != null && m >= 18 && m <= 42) { a.r = 1; cambiato = true; await accodaPush(env, { titolo: "⏰ Si parte tra poco", testo: `«${nomeS}» (${n} giocat${n === 1 ? "a" : "e"}): la prima partita inizia tra ${Math.round(m)} minuti. Controlla infortuni e quintetti.`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("promemoria " + r.id); }
+        if (m != null && m >= 18 && m <= 42) { a.r = 1; cambiato = true; await accodaPush(env, { cat: "sc", titolo: "⏰ Si parte tra poco", testo: `«${nomeS}» (${n} giocat${n === 1 ? "a" : "e"}): la prima partita inizia tra ${Math.round(m)} minuti. Controlla infortuni e quintetti.`, url: "/#/registro" }, (sb) => sb.codice === cod); out.push("promemoria " + r.id); }
       }
       // 1c) formazione ufficiale: quando ESPN pubblica i quintetti (entro 90 minuti dall'inizio), si avvisa per i giocatori della schedina
       if (preIds.size && r.legs.some((l) => l.pid && preIds.has(String(l.g)))) {
@@ -262,7 +263,7 @@ async function avvisiSchedine(env, g) {
           const mie = r.legs.filter((l) => l.pid && String(l.g) === gid && l.nome), visti = new Set();
           const righe = mie.filter((l) => !visti.has(l.pid) && visti.add(l.pid)).map((l) => (Q.titolari[l.pid] ? `✅ ${l.nome} titolare` : Q.presenti[l.pid] ? `⚠️ ${l.nome} parte dalla panchina` : `❓ ${l.nome} non è nell'elenco`));
           a.f[gid] = 1; cambiato = true;
-          await accodaPush(env, { titolo: "📋 Quintetti ufficiali", testo: `${pp.casa}-${pp.trasf}: ${righe.join(" · ")} (schedina «${nomeS}»)`.slice(0, 230), url: "/#/registro" }, (sb) => sb.codice === cod); out.push("quintetti " + gid);
+          await accodaPush(env, { cat: "sc", titolo: "📋 Quintetti ufficiali", testo: `${pp.casa}-${pp.trasf}: ${righe.join(" · ")} (schedina «${nomeS}»)`.slice(0, 230), url: "/#/registro" }, (sb) => sb.codice === cod); out.push("quintetti " + gid);
         }
       }
       // 2) schedina in corso: quasi presa / presa / persa
@@ -275,7 +276,7 @@ async function avvisiSchedine(env, g) {
       if (perse.length && !a.p) { a.p = 1; m = { titolo: "❌ Schedina persa", testo: `${nomeS}: sbagliata ${det(perse[0])}`, url: "/#/registro" }; r.esito = 0; }
       else if (!perse.length && !aperte.length && prese > 0 && !a.v) { a.v = 1; m = { titolo: "✅ Schedina presa!", testo: `${nomeS}: tutte le ${n} giocate centrate`, url: "/#/registro" }; r.esito = 1; }
       else if (!perse.length && aperte.length === 1 && n > 1 && !a.q && !a.v) { a.q = 1; m = { titolo: "🔥 Schedina quasi presa", testo: `${nomeS}: manca solo ${det(aperte[0])}`, url: "/#/live" }; }
-      if (m) { cambiato = true; await accodaPush(env, m, (sb) => sb.codice === cod); out.push("schedina " + r.id); }
+      if (m) { cambiato = true; await accodaPush(env, { ...m, cat: "sc" }, (sb) => sb.codice === cod); out.push("schedina " + r.id); }
     }
     if (cambiato) await salvaRigaForma(env, pid, S);
   }
@@ -292,7 +293,7 @@ async function riepilogoSera(env, g, ymd) {
     const chiuse = oggi.filter((r) => r.esito === 0 || r.esito === 1); if (!chiuse.length) continue;
     const ok = chiuse.filter((r) => r.esito === 1).length, saldo = chiuse.reduce((t, r) => t + (r.esito === 1 ? (r.puntata || 0) * ((r.quota || 1) - 1) : -(r.puntata || 0)), 0), fm = (x) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(2).replace(".", ",") + " €";
     const aperte = oggi.length - chiuse.length;
-    await accodaPush(env, { titolo: `🌙 Oggi: ${ok} su ${chiuse.length} prese`, testo: `Saldo ${fm(saldo)}${aperte ? ` · ${aperte} ancora da chiudere` : ""}. ` + chiuse.slice(0, 3).map((r) => `${r.esito === 1 ? "✅" : "❌"} ${r.nome || "Schedina"}`).join(" · "), url: "/#/conto" }, (sb) => sb.codice === cod);
+    await accodaPush(env, { cat: "sc", titolo: `🌙 Oggi: ${ok} su ${chiuse.length} prese`, testo: `Saldo ${fm(saldo)}${aperte ? ` · ${aperte} ancora da chiudere` : ""}. ` + chiuse.slice(0, 3).map((r) => `${r.esito === 1 ? "✅" : "❌"} ${r.nome || "Schedina"}`).join(" · "), url: "/#/conto" }, (sb) => sb.codice === cod);
     S.sera[ymd] = 1; for (const k of Object.keys(S.sera)) if (k < romaYMD(Date.now() - 7 * 86400e3)) delete S.sera[k];
     await salvaRigaForma(env, pid, S); out.push("sera " + cod.slice(0, 4));
   }
@@ -309,7 +310,7 @@ async function ritiraAvviso(env, id) {
 async function avvisa(env, titolo, testo, breve) {
   const out = [];
   if (env.TELEGRAM_TOKEN && env.TELEGRAM_CHAT_ID) { await telegram(env, testo); out.push("telegram"); }
-  try { const r = await pushATutti(env, titolo, breve || testo.slice(0, 160)); if (r.inviati) out.push("push"); } catch {}
+  try { const r = await pushATutti(env, titolo, breve || testo.slice(0, 160), "/#/schedine", "gg"); if (r.inviati) out.push("push"); } catch {}
   return out;
 }
 
@@ -326,6 +327,24 @@ async function segnaCron(env, nome, esito) {
   S[nome] = { t: new Date().toISOString(), esito: JSON.stringify(esito ?? "ok").slice(0, 160) };
   await salvaRigaForma(env, "_cron", S);
 }
+// Riepilogo delle giocate (oggi: off 0, domani: off 1): migliori giocate, giocata del giorno e schedine
+async function inviaRiepilogo(env, off) {
+  const D = await apiGiorno(env, { waitUntil: (p) => p.catch(() => {}) }, off);
+  const pre = D.partite.filter((p) => p.stato === "pre").sort((a, b) => (a.iso < b.iso ? -1 : 1));
+  const prePick = D.picks.filter((x) => pre.some((p) => p.id === x.g)).slice(0, 6);
+  const h0 = +pre[0].ora.slice(-5, -3), quando = off === 0 ? "oggi" : h0 < 9 ? "stanotte" : "domani";
+  let t = `🏀 NBA ${quando === "oggi" ? "di oggi" : quando === "stanotte" ? "stanotte" : "di domani"}: ${D.partite.length} partite, la prima alle ${pre[0].ora.slice(-5)}\n`;
+  const gdg = [...prePick].sort((a, b) => b.prob - a.prob)[0];
+  if (gdg) t += `\n⭐ Giocata del giorno: ${gdg.testo} (${gdg.partita}) ${pc(gdg.prob)}\n`;
+  if (prePick.length) t += `\nMigliori giocate\n` + prePick.map((x) => `• ${x.testo} (${x.partita}) ${pc(x.prob)}`).join("\n");
+  const sch = (D.schedine || []).filter((x) => /^q\d+$/.test(x.id));
+  for (const s of sch.length ? sch : [(D.schedine || []).find((x) => x.id === "sicura") || (D.schedine || [])[0]].filter(Boolean))
+    t += `\n\n${s.id === "q20" ? "💣" : "🎟"} ${s.nome} · quota giusta ${s.quotaEqua.toFixed(2)} · si centra il ${pc(s.prob)}\n` + s.legs.map((l) => `• ${l.testo} (${l.partita}) ${pc(l.prob)}`).join("\n");
+  t += `\n\nLa quota giusta è calcolata dalle probabilità: i bookmaker pagano un po' meno.`;
+  t += `\n\nSono stime del modello, non certezze.${env.APP_URL ? "\n" + env.APP_URL : ""}`;
+  await avvisa(env, `🏀 Le giocate di ${quando}`, t, `${gdg ? "⭐ " + gdg.testo + " " + pc(gdg.prob) + " · " : ""}${pre.length} partite · ${sch.length ? "schedine quota " + sch.map((x) => x.obiettivo).join(", ") + " pronte" : "migliori giocate pronte"}`);
+}
+
 async function cronAvvisi(env) {
   if (!dbOk(env)) return { saltato: "serve Supabase" };
   const conTelegram = env.TELEGRAM_TOKEN && env.TELEGRAM_CHAT_ID, conPush = ((await rigaForma(env, "_push").catch(() => null)) || { subs: [] }).subs.length > 0;
@@ -337,19 +356,17 @@ async function cronAvvisi(env) {
   // 1) riepilogo della giornata: una volta, dalle 9 del mattino (ora italiana) in poi; oppure, se non è partito, nelle 4 ore prima della prima partita
   const oraRoma = +new Date(ora).toLocaleString("en-GB", { timeZone: "Europe/Rome", hour: "2-digit", hour12: false });
   if (!oggi.d && pre.length && ((oraRoma >= 9 && oraRoma < 23) || (prima && prima - ora < 4 * 3600e3))) {
-    const D = await apiGiorno(env, { waitUntil: (p) => p.catch(() => {}) }, 0);
-    const prePick = D.picks.filter((x) => D.partite.find((p) => p.id === x.g && p.stato === "pre")).slice(0, 6);
-    let t = `🏀 NBA di oggi: ${g.partite.length} partite, la prima alle ${g.partite.filter((p) => p.stato === "pre").sort((a, b) => (a.iso < b.iso ? -1 : 1))[0].ora.slice(-5)}\n`;
-    const gdg = [...prePick].sort((a, b) => b.prob - a.prob)[0];
-    if (gdg) t += `\n⭐ Giocata del giorno: ${gdg.testo} (${gdg.partita}) ${pc(gdg.prob)}\n`;
-    if (prePick.length) t += `\nMigliori giocate\n` + prePick.map((x) => `• ${x.testo} (${x.partita}) ${pc(x.prob)}`).join("\n");
-    const sch = (D.schedine || []).filter((x) => /^q\d+$/.test(x.id));
-    for (const s of sch.length ? sch : [(D.schedine || []).find((x) => x.id === "sicura") || (D.schedine || [])[0]].filter(Boolean))
-      t += `\n\n${s.id === "q20" ? "💣" : "🎟"} ${s.nome} · quota giusta ${s.quotaEqua.toFixed(2)} · si centra il ${pc(s.prob)}\n` + s.legs.map((l) => `• ${l.testo} (${l.partita}) ${pc(l.prob)}`).join("\n");
-    t += `\n\nLa quota giusta è calcolata dalle probabilità: i bookmaker pagano un po' meno.`;
-    t += `\n\nSono stime del modello, non certezze.${env.APP_URL ? "\n" + env.APP_URL : ""}`;
-    const schQ = (D.schedine || []).filter((x) => /^q\d+$/.test(x.id));
-    await avvisa(env, "🏀 Le giocate di oggi", t, `${gdg ? "⭐ " + gdg.testo + " " + pc(gdg.prob) + " · " : ""}${D.partite.filter((p) => p.stato === "pre").length} partite · ${schQ.length ? "schedine quota " + schQ.map((x) => x.obiettivo).join(", ") + " pronte" : "migliori giocate pronte"}`); oggi.d = 1; fatto.push("riepilogo");
+    await inviaRiepilogo(env, 0); oggi.d = 1; fatto.push("riepilogo");
+  }
+  // 1a) riepilogo di domani (in Italia le partite sono di notte): alle 9 del mattino, una volta sola
+  const ymd1 = romaYMD(ora + 86400e3), dom = stato[ymd1] || {};
+  if (!dom.d && oraRoma >= 9 && oraRoma < 23) {
+    const g1 = await caricaGiorno(1, null, 60).catch(() => null);
+    if (g1) {
+      const n1 = g1.partite.filter((p) => p.stato === "pre").length;
+      if (n1) { await inviaRiepilogo(env, 1); dom.d = 1; fatto.push("riepilogo domani"); } else dom.d = 2; // 2 = nessuna partita, non ricontrollare
+      stato[ymd1] = dom; fatto.length || fatto.push("domani senza partite");
+    }
   }
   // 1b) preferiti: inizio e fine delle partite delle squadre (o dei giocatori) che ogni telefono segue
   {
@@ -358,19 +375,23 @@ async function cronAvvisi(env) {
     oggi.i ||= {}; oggi.f ||= {};
     for (const p of g.partite) {
       if (!subs.some((sb) => segue(sb, p))) continue;
-      if (p.stato === "in" && !oggi.i[p.id]) { await accodaPush(env, { titolo: `🏀 ${p.casa} - ${p.trasf}`, testo: "La partita è iniziata. Tocca per seguirla in diretta.", url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.i[p.id] = 1; fatto.push("inizio " + p.id); }
+      if (p.stato === "pre") { // promemoria 20-40 minuti prima dell'inizio per le partite che segui
+        const m = (Date.parse(p.iso) - ora) / 60000; oggi.p ||= {};
+        if (m >= 20 && m <= 40 && !oggi.p[p.id]) { await accodaPush(env, { cat: "pr", titolo: `⏰ Tra poco ${p.casa} - ${p.trasf}`, testo: `Inizia alle ${p.ora.slice(-5)}. Tocca per vedere stime e giocate.`, url: `/#/partita/${p.id}` }, (sb) => sb.pref && segue(sb, p)); oggi.p[p.id] = 1; fatto.push("promemoria " + p.id); }
+      }
+      if (p.stato === "in" && !oggi.i[p.id]) { await accodaPush(env, { cat: "pr", titolo: `🏀 ${p.casa} - ${p.trasf}`, testo: "La partita è iniziata. Tocca per seguirla in diretta.", url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.i[p.id] = 1; fatto.push("inizio " + p.id); }
       if (p.stato === "in") {
         const diff = Math.abs((p.ptCasa ?? 0) - (p.ptTr ?? 0)), minuti = /:/.test(p.orologio || "") ? parseInt(p.orologio) : 0, punteggio = `${p.casa} ${p.ptCasa} - ${p.ptTr} ${p.trasf}`;
         oggi.h ||= {}; oggi.c ||= {};
-        if (/half|interval/i.test(p.dettaglio || "") && !oggi.h[p.id]) { await accodaPush(env, { titolo: `⏸ Intervallo ${p.casa} - ${p.trasf}`, testo: punteggio, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.h[p.id] = 1; fatto.push("intervallo " + p.id); }
-        if ((p.periodo || 0) >= 4 && minuti < 5 && diff <= 6 && !oggi.c[p.id]) { await accodaPush(env, { titolo: `🔥 Finale punto a punto`, testo: `${punteggio} · ${p.dettaglio || ""}`, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.c[p.id] = 1; fatto.push("finale " + p.id); }
+        if (/half|interval/i.test(p.dettaglio || "") && !oggi.h[p.id]) { await accodaPush(env, { cat: "pr", titolo: `⏸ Intervallo ${p.casa} - ${p.trasf}`, testo: punteggio, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.h[p.id] = 1; fatto.push("intervallo " + p.id); }
+        if ((p.periodo || 0) >= 4 && minuti < 5 && diff <= 6 && !oggi.c[p.id]) { await accodaPush(env, { cat: "pr", titolo: `🔥 Finale punto a punto`, testo: `${punteggio} · ${p.dettaglio || ""}`, url: "/#/live" }, (sb) => sb.pref && segue(sb, p)); oggi.c[p.id] = 1; fatto.push("finale " + p.id); }
       }
       if (p.stato === "post" && !oggi.f[p.id]) {
         let box = {}; try { box = await caricaBoxscore(p.id, 600); } catch {}
         const finale = `Finale: ${p.casa} ${p.ptCasa} - ${p.ptTr} ${p.trasf}`;
         for (const sb of subs.filter((x) => segue(x, p))) {
           const righe = (sb.pref.pl || []).filter((x) => x.sq === p.casa || x.sq === p.trasf).map((x) => { const b = box[x.pid]; return b ? `${x.nome}: ${b.pts ?? 0} pt, ${b.reb ?? 0} rb, ${b.ast ?? 0} as` : null; }).filter(Boolean);
-          await accodaPush(env, { titolo: `🏁 ${p.casa} - ${p.trasf}`, testo: [finale, ...righe].join("\n"), url: `/#/partita/${p.id}` }, (x) => x.endpoint === sb.endpoint);
+          await accodaPush(env, { cat: "pr", titolo: `🏁 ${p.casa} - ${p.trasf}`, testo: [finale, ...righe].join("\n"), url: `/#/partita/${p.id}` }, (x) => x.endpoint === sb.endpoint);
         }
         oggi.f[p.id] = 1; fatto.push("fine " + p.id);
       }
