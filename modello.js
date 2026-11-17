@@ -141,7 +141,7 @@ export function consigli(partite) {
     for (const sq of [casa, trasf]) {
       const ds = g.giocatori.filter((p) => p.sq === sq);
       for (const [m, c] of Object.entries(MERCATI)) {
-        for (const p of [...ds].sort((a, b) => b[c.k].v - a[c.k].v).slice(0, 3)) {
+        for (const p of [...ds].sort((a, b) => b[c.k].v - a[c.k].v).slice(0, 8)) {
           const o = p[c.k];
           if (o.rec === null || o.rec < c.minimo) continue;
           const pg = o.pg ?? 1, pr = (o.pRec ?? probOver(o.v, o.rec, o.sd)) * pg * RISCHIO_DNP, mk = o.mk;

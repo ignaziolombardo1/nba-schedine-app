@@ -23,9 +23,13 @@ const pct = (p) => Math.round(p * 100) + "%";
 // ---------- dati
 let giorno = ls.get("giorno", 0);
 if (typeof giorno !== "number" && !/^\d{8}$/.test(String(giorno))) giorno = 0;
-const IMP0 = { soglia: 0.70, mercati: { Punti: true, Rimbalzi: true, Assist: true, Totale: true, Squadra: true, Vincente: true }, puntata: 5, bankroll: 100, kelly: 0.25 };
+const IMP0 = { soglia: 0.70, mercati: { Punti: true, Rimbalzi: true, Assist: true, Totale: true, Squadra: true, Vincente: true }, puntata: 5, bankroll: 100, kelly: 0.25, nGioc: 3 };
 const impo = () => { const i = ls.get("imp", {}); return { ...IMP0, ...i, mercati: { ...IMP0.mercati, ...(i.mercati || {}) } }; };
-function applicaImp(D) { const i = impo(); if (!D || !D.picks) return D; return { ...D, picks: D.picks.filter((x) => x.prob >= i.soglia && i.mercati[x.tipo] !== false) }; }
+function applicaImp(D) { const i = impo(); if (!D || !D.picks) return D; const ok = D.picks.filter((x) => x.prob >= i.soglia && i.mercati[x.tipo] !== false), n = {}, N = i.nGioc || 3;
+  // al massimo N giocatori per squadra e per categoria (i più probabili), così si vedono più puntate sui giocatori
+  const ord = ok.slice().sort((a, b) => b.prob - a.prob), tieni = new Set();
+  for (const x of ord) { if (!x.pid) { tieni.add(x); continue; } const k = x.g + "|" + x.squadra + "|" + x.tipo; if ((n[k] = (n[k] || 0) + 1) <= N) tieni.add(x); }
+  return { ...D, picks: ok.filter((x) => tieni.has(x)) }; }
 const cache = {};
 function salvaLocale(k, d) {
   const val = JSON.stringify({ t: Date.now(), d });

@@ -31,6 +31,7 @@ function vistaImpostazioni() {
   const back = `<a class="back" href="#/storico"><i class="ti ti-chevron-left"></i>Storico</a>`;
   let h = back + `<h2>Impostazioni</h2><div class="cap" style="margin-top:0">Valgono solo su questo telefono. Cambiano le giocate che vedi nelle pagine Partite, Studio e Combo; le proposte di schedina usano soglie proprie.</div>`;
   h += `<div class="card"><div class="sub" style="margin-top:0">Probabilità minima delle giocate</div><div class="tabs">${[0.70, 0.75, 0.80, 0.85].map((v) => `<button class="chipbtn${i.soglia === v ? " on" : ""}" data-sg="${v}">${Math.round(v * 100)}%</button>`).join("")}</div></div>`;
+  h += `<div class="card"><div class="sub" style="margin-top:0">Giocatori per squadra (per Punti, Rimbalzi, Assist)</div><div class="tabs">${[2, 3, 5, 8].map((v) => `<button class="chipbtn${(i.nGioc || 3) === v ? " on" : ""}" data-ng="${v}">${v}</button>`).join("")}</div><div class="cap">Quante puntate sui giocatori mostrare al massimo per ogni squadra e categoria, sempre sopra la probabilità minima.</div></div>`;
   h += `<div class="card"><div class="sub" style="margin-top:0">Quali giocate vedere</div>${Object.keys(IMP0.mercati).map((m) => `<label class="sw"><input type="checkbox" data-mk="${m}" ${i.mercati[m] !== false ? "checked" : ""}> ${esc({ Vincente: "Squadra vincente", Squadra: "Punti di una squadra", Totale: "Totale della partita" }[m] || m)}</label>`).join("")}</div>`;
   const pushOk = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   h += `<div class="card"><div class="sub" style="margin-top:0"><i class="ti ti-bell"></i> Notifiche sul telefono</div>` + (pushOk
@@ -47,6 +48,7 @@ function vistaImpostazioni() {
   h += `<button class="btn" id="ripr">Ripristina le impostazioni iniziali</button>`;
   APP.innerHTML = h;
   const salva = (m) => { ls.set("imp", { ...impo(), ...m }); };
+  APP.querySelectorAll("[data-ng]").forEach((b) => b.onclick = () => { salva({ nGioc: +b.dataset.ng }); vistaImpostazioni(); });
   APP.querySelectorAll("[data-sg]").forEach((b) => b.onclick = () => { salva({ soglia: +b.dataset.sg }); vistaImpostazioni(); });
   APP.querySelectorAll("[data-mk]").forEach((c) => c.onchange = () => { const mk = { ...impo().mercati, [c.dataset.mk]: c.checked }; salva({ mercati: mk }); });
   $("#pun").oninput = (e) => { const v = parseFloat(String(e.target.value).replace(",", ".")); if (v > 0) salva({ puntata: v }); };
