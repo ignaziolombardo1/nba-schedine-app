@@ -37,5 +37,7 @@ App (PWA) italiana per pronostici NBA: partite e live, giocate con probabilità,
 
 - v102: gli avvisi dati non gravi (forma non caricata ecc.) non compaiono più in Home, solo quelli rossi; `/#/diag` ha la voce «Forma recente dei giocatori» con ultimo errore.
 
+- v103: toccando una partita finita in Home il riquadro mostra anche i punti per quarto e il grafico dello scarto (`tabQuarti`, `andamentoLive` con `f:1`, nel handler `[data-tab]` di mia.js).
+
 ## Idee aperte
 Classifica privata del gruppo (serve un accesso/identità), notifiche per altri eventi, verifica dei dati ESPN reali per classifica, quarti e boxscore.

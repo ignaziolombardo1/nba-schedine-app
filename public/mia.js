@@ -66,7 +66,9 @@ document.addEventListener("click", async (e) => {
       box.innerHTML = skel();
       try {
         const R = await api("/api/tabellino?id=" + id, 120);
-        tabelliniCache[id] = formazioniLive(ultimoD || { squadre: {} }, { giocatori: R.giocatori || [], casa: tb.dataset.casa || R.casa, trasf: tb.dataset.trasf || R.trasf }) + `<a class="btn" style="display:block;text-align:center" href="#/partita/${id}">Apri lo studio di questa partita</a>`;
+        const pp = ((ultimoD && ultimoD.partite) || []).find((x) => String(x.id) === String(id)), DD = ultimoD || { squadre: {} };
+        const quarti = pp && ((pp.qTr || []).length || (pp.qCasa || []).length) ? `<div class="card" style="margin:8px 0"><div class="s" style="margin-bottom:2px">Punti per quarto</div>${tabQuarti(pp, DD)}${pp.r ? andamentoLive(DD, { ...pp, f: 1 }) : ""}</div>` : "";
+        tabelliniCache[id] = quarti + formazioniLive(ultimoD || { squadre: {} }, { giocatori: R.giocatori || [], casa: tb.dataset.casa || R.casa, trasf: tb.dataset.trasf || R.trasf }) + `<a class="btn" style="display:block;text-align:center" href="#/partita/${id}">Apri lo studio di questa partita</a>`;
       } catch { box.innerHTML = `<div class="vuoto">Tabellino non disponibile, riprova tra poco.</div>`; return; }
     }
     box.innerHTML = tabelliniCache[id]; return;
