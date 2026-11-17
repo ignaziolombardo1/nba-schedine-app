@@ -147,13 +147,19 @@ function illumina(card, id, ptTr, ptCasa) {
     tm.dataset.plus = "+" + d; tm.classList.remove("glow"); void tm.offsetWidth; tm.classList.add("glow");
   });
 }
+// punti stimati di una squadra: a fine partita il numero è verde se i punti reali l'hanno superato, rosso se no
+function esitoStima(p, l, stima) {
+  const n = stima.toFixed(0); if (p.stato !== "post") return n;
+  const reale = l === "c" ? p.ptCasa : p.ptTr; if (reale == null) return n;
+  return `<span style="color:${reale > stima ? GR : reale < stima ? RD : "inherit"}">${n}</span>`;
+}
 function schedaPartita(D, p, topPick, cliccabile) {
   const t = T(D, p.casa), v = T(D, p.trasf), r = p.r;
   let chip, col = MU;
   if (p.stato === "post") { chip = "Finale"; col = GR; } else if (p.stato === "in") { chip = `<span class="dot"></span>Live · ${esc(p.dettaglio)}`; col = OR; } else chip = esc(p.ora);
   const fav = r.margine > 0 ? p.casa : p.trasf;
   const cc = t.c, ct = v.c.toLowerCase() === cc.toLowerCase() ? "#5a6378" : v.c;
-  const team = (ab, ruolo, stima, l) => `<div class="tm" data-l="${l}">${cliccabile ? logo(ab, 54) : `<a href="#/squadra/${esc(ab)}" aria-label="Pagina ${esc(ab)}" style="display:block;position:relative">${logo(ab, 54)}<span class="nwb"><i class="ti ti-chevron-right"></i></span></a>`}<div class="tn">${esc(T(D, ab).b)}</div><div class="s">${ruolo}</div><div class="st">${stima.toFixed(0)} <span>stimati</span></div></div>`;
+  const team = (ab, ruolo, stima, l) => `<div class="tm" data-l="${l}">${cliccabile ? logo(ab, 54) : `<a href="#/squadra/${esc(ab)}" aria-label="Pagina ${esc(ab)}" style="display:block;position:relative">${logo(ab, 54)}<span class="nwb"><i class="ti ti-chevron-right"></i></span></a>`}<div class="tn">${esc(T(D, ab).b)}</div><div class="s">${ruolo}</div><div class="st">${esitoStima(p, l, stima)} <span>stimati</span></div></div>`;
   const centro = p.stato === "pre"
     ? `<div class="mid"><div class="ora">${esc(String(p.ora).slice(-5))}</div><div class="s">${esc(String(p.ora).slice(0, 5))}</div></div>`
     : `<div class="mid"><div class="sc"><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="c">${p.ptCasa ?? 0}</span><i>-</i><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="t">${p.ptTr ?? 0}</span></div></div>`;
@@ -179,7 +185,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
     const q = (p.qTr || []).length ? `<div class="qr" data-qt>${(p.qTr || []).map((v, i) => `<span class="${p.stato === "in" && p.periodo === i + 1 ? "cur" : ""}">Q${i + 1} ${(p.qCasa || [])[i] ?? 0}-${v}</span>`).join("")}</div>` : "";
     const fin = p.stato === "post";
     return `<${fin ? "div" : "a"} class="card gm cmp${p.stato === "in" ? " inlive" : ""}"${fin ? ` data-tab="${p.id}" data-casa="${p.casa}" data-trasf="${p.trasf}"` : ` href="#/partita/${p.id}"`} data-gid="${p.id}" data-st="${p.stato}" style="--ca:${ct};--cb:${cc}${fin ? ";cursor:pointer" : ""}">
-  <div class="riga" style="margin-bottom:4px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span><span class="s">${p.stato === "pre" ? `stimati ${r.ptCasa.toFixed(0)}-${r.ptTr.toFixed(0)}` : fin ? "Tabellino" : "Studia"} <i class="ti ${fin ? "ti-chevron-down" : "ti-chevron-right"}"></i></span></div>
+  <div class="riga" style="margin-bottom:4px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span><span class="s">${p.stato === "pre" ? `stimati ${r.ptCasa.toFixed(0)}-${r.ptTr.toFixed(0)}` : fin ? `stimati ${esitoStima(p, "c", r.ptCasa)}-${esitoStima(p, "t", r.ptTr)} · Tabellino` : "Studia"} <i class="ti ${fin ? "ti-chevron-down" : "ti-chevron-right"}"></i></span></div>
   <div class="cg"><div class="tm cr" data-l="c">${lato(p.casa, "ca", 1)}</div>${mezzo}<div class="tm cr" data-l="t">${lato(p.trasf, "tr", 2)}</div></div>${q}
   <div class="bar" style="margin:6px 0 6px"><div style="width:${(r.pw * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>${chips}</${fin ? "div" : "a"}>${fin ? `<div class="tabl" id="tb${p.id}" hidden></div>` : ""}`;
   }
