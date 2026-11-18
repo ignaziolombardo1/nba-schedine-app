@@ -86,7 +86,7 @@ export function proiettaGiocatori(sig, avv, teams, players, infortuni = {}, form
       const rid = l10 ? 0.25 : 0.45, bo = (k) => (usciti.length ? Math.min(0.2 * p[k], rid * persi[k] * p[k] / somma[k]) : 0);
       const boost = { pts: bo("pts"), reb: bo("reb"), ast: bo("ast") };
       val.Punti += boost.pts; val.Rimbalzi += boost.reb; val.Assist += boost.ast;
-      const o = { nome: p.nome, pid: p.pid, sq: sig, min: r1(minAtt), minBase: r1(min0), dif: r1((fDif - 1) * 100), assenze: usciti.length ? usciti.slice(0, 3).map((u) => u.nome) : null, boost: usciti.length ? { pts: r1(boost.pts), reb: r1(boost.reb), ast: r1(boost.ast) } : null, inf, forma: r1(l10 ? l10.pts : p.pts), stagione: r1(p.pts), conForma: !!l10,
+      const o = { nome: p.nome, pid: p.pid, sq: sig, min: r1(minAtt), minBase: r1(min0), dif: r1((fDif - 1) * 100), assenze: usciti.length ? usciti.slice(0, 3).map((u) => u.nome) : null, boost: usciti.length ? { pts: r1(boost.pts), reb: r1(boost.reb), ast: r1(boost.ast) } : null, inf, forma: r1(l10 ? l10.pts : p.pts), stagione: r1(p.pts), gp: p.gp ?? null, gs: p.gs ?? null, conForma: !!l10,
         ult: ok ? { pts: [...f.pts].reverse(), reb: [...f.reb].reverse(), ast: [...f.ast].reverse() } : null };
       for (const [m, c] of Object.entries(MERCATI)) {
         const q = props && props[`${normNome(p.nome)}|${c.k}`];

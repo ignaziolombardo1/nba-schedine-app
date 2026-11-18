@@ -370,3 +370,21 @@ html.compatta .card.gm{padding:8px 10px}
 html.compatta .card.gm .cg{margin:2px 0}
 html.compatta .chip{font-size:11px;padding:2px 7px}
 html.compatta .card{margin-bottom:6px}
+
+/* v117: formazioni e giocatori nello studio partita */
+.ro{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:6px 0;padding:0 10px;border-left-width:1px}
+.ro summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 0}
+.ro summary::-webkit-details-marker{display:none}
+.ro .ro-n{display:grid;grid-template-columns:repeat(3,auto);gap:2px 8px;text-align:right;white-space:nowrap}.ro .ro-n b{color:var(--txt)}
+.ro .ro-tg{font-size:10px;padding:1px 6px;margin-left:4px;vertical-align:middle}
+.ro .ro-d{padding:2px 0 12px;border-top:1px solid var(--line)}
+.ro .ro-sez{margin-top:10px}.ro .ro-sez>b{font-size:13px}
+.ro-top{border:2px solid var(--or);box-shadow:0 0 0 3px color-mix(in srgb,var(--or) 18%,transparent)}
+.ro-ok{border:2px solid #3ddc84}
+.ro-dub{border:2px dashed #ffb066}
+.ro-out{opacity:.75;padding:9px 10px;border-color:#5a2a2a}
+.ro-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mut)}
+.ro-sw{display:inline-block;width:14px;height:14px;border-radius:5px;vertical-align:-2px;margin-right:4px;border:2px solid}
+.ro-sw.top{border-color:var(--or)}.ro-sw.ok{border-color:#3ddc84}.ro-sw.dub{border-color:#ffb066;border-style:dashed}
+.ro .pwy{margin:2px 0 8px}
+.ro .ro-tg{margin:0 6px 0 0}

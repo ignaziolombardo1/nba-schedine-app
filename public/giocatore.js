@@ -220,7 +220,8 @@ async function vistaStudio(id, force) {
     if (best) h += `<div class="gdg" style="margin-top:10px"><div class="gt">Giocata migliore</div><div class="gx">${esc(best.testo)}</div><div class="gp"><b style="color:${colProb(best.prob)}">${Math.round(best.prob * 100)}%</b><span class="s">stima ${esc(best.stima)}</span></div><div class="gb"><i style="width:${Math.round(best.prob * 100)}%"></i></div></div>`; }
   { const n = ls.get("hintNews", 0); if (n < 3) { ls.set("hintNews", n + 1); h += `<div class="cap" style="margin:8px 0 0"><i class="ti ti-news"></i> Tocca il logo di una squadra per la sua pagina e le sue notizie.</div>`; } }
   // 1) i migliori delle due squadre con le loro medie
-  if (p.giocatori.length) {
+  if (typeof rosaPartita === "function" && p.giocatori.length) h += rosaPartita(D, p, picks);
+  else if (p.giocatori.length) {
     h += `<h2>I migliori</h2><div class="card">` + [p.casa, p.trasf].map((sq, i) => {
       const ds = [...p.giocatori.filter((x) => x.sq === sq)].sort((a, b) => b.pts.media - a.pts.media).slice(0, 4), stima = i === 0 ? r.ptCasa : r.ptTr;
       return `<div${i ? ' style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"' : ""}><div class="riga"><div class="lg">${logo(sq, 26)}<b>${esc(T(D, sq).n)}</b></div><span class="s">stima ${stima.toFixed(0)} punti</span></div>` +
@@ -251,6 +252,7 @@ async function vistaStudio(id, force) {
   for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) note.push(`${T(D, s).b} ha giocato ieri: stima ridotta di circa 1.2 punti.`);
   h += `<h2>Da controllare prima di decidere</h2><div class="cap" style="display:grid;gap:6px">${note.map((n) => `<div>• ${esc(n)}</div>`).join("")}</div>`;
   APP.innerHTML = h;
+  if (typeof rosaUfficiale === "function") rosaUfficiale(D, p, picks);
   const contStudio = (k) => {
     const l = picks.filter(gruppi[k][1]); if (!l.length) return `<div class="vuoto">Nessuna giocata sopra la soglia in questa sezione.</div>`;
     if (k === "p") return [...raggruppa(l)].filter(([, v]) => v.length).map(([t, v]) => `<div class="sub">${esc(t)}</div>` + v.map((x) => cardPick(x) + perche(x)).join("")).join("");

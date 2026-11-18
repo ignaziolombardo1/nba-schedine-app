@@ -97,7 +97,7 @@ export async function caricaStatistiche() {
         const ab = nomi["id:" + info.teamId] || nomi[String(info.teamShortName || "").toLowerCase()] || nomi[String(info.teamName || "").toLowerCase()];
         const idg = String(info.id || ""); if (idg && visti.has(idg)) continue; visti.add(idg);
         if (ab && v.avgPoints != null && v.avgMinutes != null)
-          players.push({ nome: info.displayName, pid: String(info.id || ""), sq: ab, min: +v.avgMinutes, pts: +v.avgPoints, reb: +(v.avgRebounds || 0), ast: +(v.avgAssists || 0) });
+          players.push({ nome: info.displayName, pid: String(info.id || ""), sq: ab, min: +v.avgMinutes, pts: +v.avgPoints, reb: +(v.avgRebounds || 0), ast: +(v.avgAssists || 0), gp: v.gamesPlayed != null ? +v.gamesPlayed : null, gs: v.gamesStarted != null ? +v.gamesStarted : null });
       }
       if (!players.length) errGioc = `stagione ${t.season}: ${ricevuti} ricevuti, 0 riconosciuti (colonne: ${Object.keys(nomiCol).join(",")}; squadra es. ${JSON.stringify(((pj.athletes || [])[0] || {}).athlete || {}).slice(0, 160)})`;
     } catch (e) { errGioc = `stagione ${t.season}: ${e.message}`; }
