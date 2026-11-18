@@ -75,7 +75,7 @@ async function leggiForma(env) {
 }
 
 // Ogni 30 minuti (cron): aggiorna la forma recente dei giocatori che giocano oggi e domani. Pochi per volta per restare nei limiti.
-async function aggiornaForma(env) {
+async function aggiornaForma(env, max = 8) {
   if (!dbOk(env)) return;
   const [stat, g0, g1] = await Promise.all([caricaStatistiche(), caricaGiorno(0), caricaGiorno(1)]);
   const squadre = []; for (const p of [...g0.partite, ...g1.partite]) { if (p.stato === "post") continue; squadre.push(p.casa, p.trasf); }
@@ -87,11 +87,10 @@ async function aggiornaForma(env) {
     const gs = stat.players.filter((q) => q.sq === sq && q.min >= 20 && q.pid).sort((a, b) => b.min - a.min).slice(0, 9);
     for (const q of gs) if (!elenco[q.pid] || Date.parse(elenco[q.pid]) < vecchio) candidati.push(q);
   }
-  const lotto = candidati.slice(0, 26), righe = []; let falliti = 0, ultimoErr = errore;
-  await Promise.all(lotto.map(async (q) => {
-    try { righe.push({ pid: q.pid, nome: q.nome, sq: q.sq, dati: await caricaGamelog(q.pid), agg: new Date().toISOString() }); }
-    catch (e) { falliti++; ultimoErr = e.message; }
-  }));
+  // Cloudflare (piano gratuito) permette 50 richieste per esecuzione: lotti piccoli, e se la prima fallisce ci si ferma subito
+  const lotto = candidati.slice(0, max), righe = []; let falliti = 0, ultimoErr = errore;
+  const una = async (q) => { try { righe.push({ pid: q.pid, nome: q.nome, sq: q.sq, dati: await caricaGamelog(q.pid), agg: new Date().toISOString() }); return true; } catch (e) { falliti++; ultimoErr = e.message; return false; } };
+  if (lotto.length) { const ok = await una(lotto[0]); if (ok) await Promise.all(lotto.slice(1).map(una)); }
   righe.push({ pid: "_stato", nome: "stato", sq: "", dati: { ultimo: new Date().toISOString(), ok: righe.length, falliti, da_fare: Math.max(0, candidati.length - lotto.length), errore: ultimoErr }, agg: new Date().toISOString() });
   await db(env, "POST", { tabella: "nba_forma", params: { on_conflict: "pid" }, corpo: righe, prefer: "resolution=merge-duplicates" });
 }
@@ -569,7 +568,7 @@ async function apiGiorno(env, ctx, offset, data = null) {
   if (dbOk(env)) {
     const ultF = fm.stato && fm.stato.ultimo ? Date.parse(fm.stato.ultimo) : 0, errF = fm.stato && fm.stato.errore ? ` Ultimo errore: ${String(fm.stato.errore).slice(0, 110)}.` : "";
     // se la forma manca o è vecchia, si prova a caricarla subito (senza aspettare il cron), al massimo una volta ogni 10 minuti
-    if (stat.players.length && (!fm.n || Date.now() - ultF > 3 * 3600e3) && Date.now() - ultF > 10 * 60e3) ctx.waitUntil(aggiornaForma(env).catch(() => {}));
+    if (stat.players.length && (!fm.n || Date.now() - ultF > 3 * 3600e3) && Date.now() - ultF > 10 * 60e3) ctx.waitUntil(aggiornaForma(env, 4).catch(() => {}));
     if (stat.players.length && !fm.n) salute.push({ liv: "warn", t: "Forma recente dei giocatori non ancora caricata: le stime usano la media stagione. Sto provando a caricarla ora, riapri tra un minuto." + errF });
     else if (fm.stato && fm.stato.ultimo && Date.now() - Date.parse(fm.stato.ultimo) > 5 * 3600e3) salute.push({ liv: "warn", t: "Forma recente dei giocatori non aggiornata da più di 5 ore." });
     if (fm.errore) salute.push({ liv: "warn", t: "Database non raggiungibile: Storico e forma potrebbero mancare." });
@@ -807,7 +806,7 @@ export default {
   async scheduled(event, env, ctx) {
     if (event.cron === "*/5 * * * *") { ctx.waitUntil(cronAvvisi(env).then((r) => segnaCron(env, "avvisi", r), (e) => segnaCron(env, "avvisi", { errore: String(e.message || e) })).catch(() => {})); return; }
     if (event.cron === "20,50 * * * *") { ctx.waitUntil(cronQuote(env).catch(() => {})); ctx.waitUntil(aggiornaSquadre(env).catch(() => {})); return; }
-    if (event.cron === "10,40 * * * *") { ctx.waitUntil(aggiornaForma(env).catch(() => {})); return; }
+    if (event.cron === "*/10 * * * *") { ctx.waitUntil(aggiornaForma(env).catch(() => {})); return; }
     ctx.waitUntil((async () => {
       try { await apiGiorno(env, ctx, 0); } catch {}
       try { await apiGiorno(env, ctx, 1); } catch {}
