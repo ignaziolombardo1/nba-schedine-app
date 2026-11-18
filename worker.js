@@ -712,6 +712,7 @@ export default {
       if (p === "/api/esiti") return J(await apiEsiti(off, data), 120);
       if (p === "/api/storico") return J(await apiStorico(env));
       if (p === "/api/aggiorna-quote") return J(await cronQuote(env, true));
+      if (p === "/api/aggiorna-forma") { try { await aggiornaForma(env); const f = await leggiForma(env); return J({ ok: true, giocatori_con_forma: f.n, stato: f.stato || null }); } catch (e) { return J({ errore: e.message }); } }
       if (p === "/api/avviso-prova") { if (!env.TELEGRAM_TOKEN || url.searchParams.get("k") !== String(env.TELEGRAM_CHAT_ID)) return ERR("non autorizzato", 403); await telegram(env, "✅ NBA Schedine è collegata a Telegram: da ora ricevi qui il riepilogo prima delle partite e i risultati a fine giornata."); return J({ ok: true }); }
       if (p === "/api/valuta-giocate" && req.method === "POST") { const b = await req.json(); return J({ esiti: await valutaGiocate(b.legs) }); }
       if (p === "/api/push-chiave") { if (!dbOk(env)) return ERR("serve Supabase", 503); return J({ chiave: (await chiaviVapid(env)).pub }); }
