@@ -71,6 +71,7 @@ async function vistaMia() {
     <button class="btn" id="miaok" style="margin:6px 0 0"><i class="ti ti-notebook"></i> Salva e segui in diretta</button><div class="grid2" style="gap:8px;margin-top:8px"><button class="btn" id="miacp" style="margin:0"><i class="ti ti-copy"></i> Copia</button><button class="btn" id="miasvuota" style="margin:0">Svuota</button></div></div>`;
     el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { const l = miaLeggi(); l.splice(+b.dataset.rm, 1); ls.set("mia", l); barraMia(); riepilogo(); lista(); });
     $("#miasvuota").onclick = () => { ls.set("mia", []); barraMia(); riepilogo(); lista(); };
+    if (typeof stepperLinee === "function") stepperLinee(el, D, () => { riepilogo(); lista(); });
     $("#miacp").onclick = async () => { try { await navigator.clipboard.writeText(testoSchedina({ nome: "La mia schedina", legs: L, prob: p })); $("#miacp").textContent = "Copiata ✓"; } catch { $("#miacp").textContent = "Copia non riuscita"; } };
     const mq = $("#miaq");
     mq.oninput = () => { const v = parseFloat(String(mq.value).replace(",", ".")); $("#miaval").innerHTML = v > 1 ? rigaValore(valoreGiocata(p, v)) : ""; };

@@ -393,3 +393,8 @@ html.compatta .card{margin-bottom:6px}
 html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%}
 nav,#miabar{transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);will-change:transform;backface-visibility:hidden;-webkit-backdrop-filter:none;backdrop-filter:none}
 #miabar.nasc{transform:translate3d(0,16px,0)}
+
+/* v119: modifica della linea nella schedina */
+.stp{display:flex;align-items:center;gap:8px;margin-top:6px}
+.stp button{width:30px;height:28px;border-radius:9px;border:1px solid var(--line);background:var(--chip);color:var(--txt);font-size:16px;line-height:1}
+.stp span{font-size:13px}

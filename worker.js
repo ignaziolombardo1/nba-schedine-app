@@ -281,6 +281,17 @@ async function avvisiSchedine(env, g) {
       else if (!perse.length && !aperte.length && prese > 0 && !a.v) { a.v = 1; m = { titolo: "✅ Schedina presa!", testo: `${nomeS}: tutte le ${n} giocate centrate`, url: "/#/registro" }; r.esito = 1; }
       else if (!perse.length && aperte.length === 1 && n > 1 && !a.q && !a.v) { a.q = 1; m = { titolo: "🔥 Schedina quasi presa", testo: `${nomeS}: manca solo ${det(aperte[0])}`, url: "/#/live" }; }
       if (m) { cambiato = true; await accodaPush(env, { ...m, cat: "sc" }, (sb) => sb.codice === cod); out.push("schedina " + r.id); }
+      // 3) partita decisa: nell'ultimo quarto con almeno 20 punti di scarto i titolari possono uscire; avviso una volta per partita se ci sono giocate ancora aperte
+      if (!m && aperte.length && !perse.length) {
+        a.d ||= {};
+        for (const gid of [...new Set(aperte.map((i) => String(r.legs[i].g)))]) {
+          if (a.d[gid]) continue;
+          const pp = g.partite.find((p) => String(p.id) === gid); if (!pp || pp.stato !== "in" || (pp.periodo || 0) < 4) continue;
+          const sc = Math.abs((pp.ptCasa || 0) - (pp.ptTr || 0)), min = parseInt(String(pp.orologio).split(":")[0], 10); if (!(sc >= 20 && min <= 7)) continue;
+          const mie = aperte.filter((i) => String(r.legs[i].g) === gid); a.d[gid] = 1; cambiato = true;
+          await accodaPush(env, { cat: "sc", titolo: "🏁 Partita ormai decisa", testo: `${pp.casa}-${pp.trasf} ${pp.ptCasa}-${pp.ptTr}: i titolari possono uscire. Ancora aperte: ${mie.map(det).join(" · ")} (schedina «${nomeS}»)`.slice(0, 230), url: "/#/live" }, (sb) => sb.codice === cod); out.push("decisa " + gid);
+        }
+      }
     }
     if (cambiato) await salvaRigaForma(env, pid, S);
   }
@@ -472,6 +483,8 @@ async function apiDiag(env) {
   let gg = null, stat = null;
   await prova("Partite di oggi (ESPN)", async () => { gg = await caricaGiorno(0); return `${gg.partite.length} partite, ${gg.ieri.length} finite ieri, ${Object.keys(gg.linee).length} linee`; });
   await prova("Statistiche squadre e giocatori", async () => { stat = await caricaStatistiche(); return stat.diag.join(" · "); });
+  await prova("Titolarità dei giocatori (partite da titolare)", async () => { const n = stat.players.filter((q) => q.gs != null && q.gp != null).length; if (!n) throw new Error("ESPN non fornisce le partite da titolare: il quintetto stimato usa i minuti"); return `${n} giocatori con partite da titolare, es. ${stat.players.find((q) => q.gs != null).nome}: ${stat.players.find((q) => q.gs != null).gs}/${stat.players.find((q) => q.gs != null).gp}`; });
+  await prova("Quintetti ufficiali (ESPN)", async () => { const pre = gg && gg.partite.find((p) => p.stato !== "pre"); if (!pre) return "nessuna partita iniziata da controllare ora: si verifica a partita iniziata"; const Q = await caricaQuintetti(pre.id, 60); const n = Q ? Object.keys(Q.titolari || {}).length : 0; if (!n) throw new Error(`${pre.casa}-${pre.trasf}: nessun titolare letto dal boxscore`); return `${pre.casa}-${pre.trasf}: ${n} titolari letti`; });
   await prova("Forma recente dei giocatori", async () => { if (!dbOk(env)) throw new Error("serve Supabase"); const f = await leggiForma(env), st = f.stato || {};
     if (f.errore) throw new Error("database: " + f.errore);
     if (!f.n) throw new Error(`nessun giocatore caricato${st.ultimo ? `; ultimo tentativo ${st.ultimo.slice(11, 16)} UTC: ${st.ok || 0} ok, ${st.falliti || 0} falliti, ${st.da_fare || 0} da fare` : "; il caricamento non è ancora partito"}${st.errore ? ". Errore: " + String(st.errore).slice(0, 140) : ""}`);

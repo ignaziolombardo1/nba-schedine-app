@@ -171,7 +171,7 @@ async function vistaEsiti() {
   else {
     const ok = val.filter((x) => x.esito === 1).length, p = ok / val.length * 100;
     h += `<div class="card riga" style="gap:14px;justify-content:flex-start">${anello(p, p >= 60 ? GR : OR, 76)}<div><div class="s">Consigli delle partite finite</div><div style="font-size:20px;font-weight:600">${ok} su ${val.length} azzeccati</div><div class="s">${ris.length - val.length} non validi (giocatore fermo o dato mancante)</div></div></div>`;
-    h += bloccoMieGiornata();
+    h += bloccoMieGiornata() + (typeof verificaSerata === "function" ? verificaSerata(val) : "");
     const cat = ls.get("esCat", null), sel = cat != null ? SC[cat] : null;
     h += `<div class="grid2">${SC.map(([t, , tipi], i) => { const v = val.filter((x) => tipi.includes(x.tipo)); return v.length ? `<div data-ec="${i}" style="cursor:pointer;${cat === i ? "outline:1px solid " + OR + ";border-radius:16px" : ""}">${barraPerc(t, v.filter((x) => x.esito === 1).length, v.length)}</div>` : ""; }).join("")}</div>`;
     if (sel) {

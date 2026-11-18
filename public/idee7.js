@@ -45,7 +45,7 @@ function dettaglioRosa(x, picks, ruolo, forma, soglia) {
   if (x.inf === "dubbio") ctx.push(`in dubbio: la probabilità che giochi pesa sulle percentuali`);
   if (ctx.length) h += `<div class="ro-sez"><b>Contesto</b><div class="cap" style="margin:4px 0 0">${esc(ctx.join("; ").replace(/^./, (c) => c.toUpperCase()))}.</div></div>`;
   h += `<div class="ro-sez"><b>${v.mie.length ? "Perché l'app lo segnala" : "Giocate"}</b>`;
-  h += v.mie.length ? v.mie.map((q) => `<div class="s" style="margin:8px 0 2px"><b style="color:${colProb(q.prob)}">${esc(q.testo)} · ${pct(q.prob)}</b></div>${perche(q)}`).join("") : senzaGiocata(x, soglia);
+  h += v.mie.length ? v.mie.map((q) => `<div class="s" style="margin:8px 0 2px"><b style="color:${colProb(q.prob)}">${esc(q.testo)} · ${pct(q.prob)}</b></div>${graficoPick(x, q)}${perche(q)}`).join("") : senzaGiocata(x, soglia);
   return h + `</div>` + (x.pid ? `<a class="chipbtn" style="display:inline-block;margin-top:8px" href="#/giocatore/${esc(x.pid)}">Apri la scheda completa</a>` : "");
 }
 function rigaRosa(D, x, picks, ruolo, rango, soglia) {
@@ -93,4 +93,11 @@ async function rosaUfficiale(D, p, picks) {
     el.innerHTML = corpoRosa(D, p, picks);
     el.querySelectorAll("details.ro").forEach((d) => { const n = d.querySelector(".tn"); if (n && n.firstChild && aperti.has(n.firstChild.textContent.trim())) d.open = true; });
   } catch {}
+}
+
+// grafico delle ultime partite contro la linea della giocata (se la forma è caricata)
+function graficoPick(x, q) {
+  const k = q.tipo === "Punti" ? "pts" : q.tipo === "Rimbalzi" ? "reb" : q.tipo === "Assist" ? "ast" : null, m = /(over|under) ([\d.]+)/.exec(q.testo || "");
+  if (!k || !m || !x.ult || !x.ult[k]) return "";
+  return typeof graficoUltime === "function" ? graficoUltime(x.ult[k], +m[2]) : "";
 }

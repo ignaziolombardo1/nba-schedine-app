@@ -98,7 +98,7 @@ export async function aggiornaQuote(env, stato, partite, forza = false) {
   const key = env.ODDS_API_KEY; if (!key) return null;
   const adesso = Date.now(), regioni = env.ODDS_REGIONS || "us";
   const mercatiProps = (env.ODDS_PROPS || "player_points").split(",").map((x) => x.trim()).filter(Boolean);
-  const oggi = new Date(adesso + 3600e3).toISOString().slice(0, 10), tetto = parseInt(env.ODDS_BUDGET_DAY) || 14; // crediti massimi al giorno: 14 x 30 giorni = 420 su 500
+  const oggi = new Date(adesso + 3600e3).toISOString().slice(0, 10), tetto = parseInt(env.ODDS_BUDGET_DAY) || 16; // crediti massimi al giorno: 14 x 30 giorni = 420 su 500
   const speso0 = stato?.giornoSpeso === oggi ? stato.speso || 0 : 0;
   const nreg = Math.max(1, regioni.split(",").length);
   const nuovo = { giornoSpeso: oggi, speso: speso0, t: stato?.t || null, tProps: stato?.tProps || {}, giochi: stato?.giochi || {}, props: stato?.props || {}, crediti: stato?.crediti ?? null, errore: null, chiamate: 0 };
@@ -120,12 +120,14 @@ export async function aggiornaQuote(env, stato, partite, forza = false) {
     // quote dei giocatori: una volta per partita, nelle 4 ore prima dell'inizio (e di nuovo se più vecchie di 3 ore)
     const daFare = prossime.filter((p) => Date.parse(p.iso) - adesso < 4 * 3600e3 && (!nuovo.tProps[chiaveGara(p.casa, p.trasf)] || adesso - Date.parse(nuovo.tProps[chiaveGara(p.casa, p.trasf)]) > 3 * 3600e3 * lenti));
     if (mercatiProps.length && daFare.length && (nuovo.crediti == null || nuovo.crediti > 40)) {
-      for (const p of daFare.slice(0, 4)) {
-        if (!puoSpendere(costoProps)) { nuovo.errore = "tetto giornaliero di crediti raggiunto"; break; }
+      // le prime 2 partite hanno anche rimbalzi e assist (se non hai scelto ODDS_PROPS e i crediti sono sopra 250)
+      for (const [ix, p] of daFare.slice(0, 4).entries()) {
+        const mk = !env.ODDS_PROPS && ix < 2 && (nuovo.crediti == null || nuovo.crediti > 250) ? [...new Set([...mercatiProps, "player_rebounds", "player_assists"])] : mercatiProps, costo = mk.length * nreg;
+        if (!puoSpendere(costo)) { nuovo.errore = "tetto giornaliero di crediti raggiunto"; break; }
         const g = nuovo.giochi[chiaveGara(p.casa, p.trasf)]; if (!g || !g.id) continue;
         try {
-          nuovo.speso += costoProps;
-          const r = await chiedi(`/events/${g.id}/odds`, { regions: regioni, markets: mercatiProps.join(","), oddsFormat: "decimal" }, key);
+          nuovo.speso += costo;
+          const r = await chiedi(`/events/${g.id}/odds`, { regions: regioni, markets: mk.join(","), oddsFormat: "decimal" }, key);
           nuovo.props[chiaveGara(p.casa, p.trasf)] = leggiProps(r.json); nuovo.tProps[chiaveGara(p.casa, p.trasf)] = new Date().toISOString(); nuovo.crediti = r.restanti ?? nuovo.crediti; nuovo.chiamate++;
         } catch (e) { nuovo.errore = e.message; }
       }
