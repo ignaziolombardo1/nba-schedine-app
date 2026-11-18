@@ -388,3 +388,8 @@ html.compatta .card{margin-bottom:6px}
 .ro-sw.top{border-color:var(--or)}.ro-sw.ok{border-color:#3ddc84}.ro-sw.dub{border-color:#ffb066;border-style:dashed}
 .ro .pwy{margin:2px 0 8px}
 .ro .ro-tg{margin:0 6px 0 0}
+
+/* v118: barra in basso ferma mentre si scorre (iPhone): niente rimbalzo del documento, barra su un livello proprio, niente sfocatura */
+html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%}
+nav,#miabar{transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);will-change:transform;backface-visibility:hidden;-webkit-backdrop-filter:none;backdrop-filter:none}
+#miabar.nasc{transform:translate3d(0,16px,0)}
