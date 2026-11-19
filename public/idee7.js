@@ -104,8 +104,8 @@ function graficoPick(x, q) {
 }
 
 // ---- v120: tabellone del quintetto: per ogni titolare (e i 3 panchinari che giocano di più) stima, linea secondo lo stile scelto e linea del bookmaker
-const STILI = { pru: ["Prudente", 0.70, "linea alta che si supera 7 volte su 10"], equ: ["Equilibrato", 0.55, "linea che si supera poco più di una volta su due"], amb: ["Ambizioso", 0.45, "linea vicina alla stima: rende di più ma si centra meno"] };
-const stileLinee = () => { const v = ls.get("stileLinee", "pru"); return STILI[v] ? v : "pru"; };
+const STILI = { rif: ["Può farli?", null, "per ogni giocatore la linea vicina alla sua media (o quella del bookmaker) e un verdetto per questa partita: può superarla oppure no"], pru: ["Prudente", 0.70, "linea alta che si supera 7 volte su 10"], equ: ["Equilibrato", 0.55, "linea che si supera poco più di una volta su due"], amb: ["Ambizioso", 0.45, "linea vicina alla stima: rende di più ma si centra meno"] };
+const stileLinee = () => { const v = ls.get("stileLinee", "rif"); return STILI[v] ? v : "rif"; };
 const NOMI_K = { pts: ["PT", "punti", "Punti"], reb: ["RB", "rimbalzi", "Rimbalzi"], ast: ["AS", "assist", "Assist"] };
 const virg = (n) => vir(n);
 // la linea più alta che il giocatore supera con almeno la probabilità dello stile (0,97 = rischio che non scenda in campo, come nelle giocate)
@@ -126,7 +126,19 @@ function spiegaStima(x) {
   if (mk.length) a.push(`il bookmaker segna ${mk.join(", ")}: la stima finale unisce modello e mercato`);
   return a.join("; ").replace(/^./, (c) => c.toUpperCase()) + ".";
 }
+const lineaMedia = (m) => { let l = Math.floor(m) + 0.5; if (Math.abs(l + 1 - m) < Math.abs(l - m)) l += 1; return l; };
+// verdetto per questa partita sulla linea di riferimento: quella del bookmaker se c'è, altrimenti quella vicina alla media stagione
+function verdetto(x, k) {
+  const o = x[k]; if (!o) return null; const pg = o.pg == null ? 1 : o.pg, L = o.mk ? o.mk.linea : lineaMedia(o.media), p = (o.mk ? o.mk.pFin : 1 - phi((L - o.v) / o.sd)) * pg * 0.97;
+  const t = p >= 0.60 ? ["Può farli", GR, "ti-check"] : p >= 0.45 ? ["Al limite", AM, "ti-minus"] : ["Difficile", RD, "ti-x"];
+  return { L, p, t: t[0], col: t[1], ico: t[2], d: o.v - o.media, bk: !!o.mk };
+}
+function cellaRif(x, k) {
+  const o = x[k], v = verdetto(x, k); if (!o || !v) return "";
+  return `<div class="tb-c"><div class="s">${NOMI_K[k][0]} · ${v.bk ? "book" : "linea"} ${v.L}</div><div class="tb-v">${virg(o.v)}</div><div class="s">media ${virg(o.media)} ${Math.abs(v.d) >= 0.3 ? `<span style="color:${v.d > 0 ? GR : RD}">${v.d > 0 ? "▲" : "▼"} ${virg(Math.abs(v.d))}</span>` : ""}</div><div class="vd" style="color:${v.col};border-color:${v.col}"><i class="ti ${v.ico}"></i> ${v.t} ${Math.round(v.p * 100)}% <button class="tb-add" data-add7="${esc(x.pid || "")}|${k}|${v.L}|${v.p.toFixed(4)}" aria-label="Aggiungi alla schedina">+</button></div></div>`;
+}
 function cellaStat(x, k, st) {
+  if (st === "rif") return cellaRif(x, k);
   const o = x[k]; if (!o) return "";
   const b = lineaStile(o, STILI[st][1]), mk = o.mk ? `<div class="s">book ${o.mk.linea} · <b style="color:${colProb(o.mk.pFin)}">${Math.round(o.mk.pFin * 100)}%</b></div>` : "";
   return `<div class="tb-c"><div class="s">${NOMI_K[k][0]}</div><div class="tb-v">${virg(o.v)}</div>${b ? `<div class="tb-l">over <b>${b.t}</b> <span style="color:${colProb(b.p)}">${Math.round(b.p * 100)}%</span> <button class="tb-add" data-add7="${esc(x.pid || "")}|${k}|${b.t}|${b.p.toFixed(4)}" aria-label="Aggiungi alla schedina">+</button></div>` : `<div class="s">nessuna linea</div>`}${mk}</div>`;
@@ -143,13 +155,14 @@ function corpoTabellone(D, p, picks) {
     return `<div class="sub" style="display:flex;align-items:center;gap:8px">${logo(sq, 22)}${esc(T(D, sq).n)} <span class="s">${ufficiale ? "quintetto ufficiale" : "quintetto probabile"}</span></div>` + tit.map((x) => cardTabellone(x, "T", picks)).join("") + (panca.length ? `<div class="s" style="margin:10px 0 4px">Dalla panchina, i più utilizzati</div>` + panca.map((x) => cardTabellone(x, "P", picks)).join("") : "");
   }).join("");
 }
+const descrStile = () => { const st = stileLinee(); return `<b>${STILI[st][0]}</b>: ${STILI[st][2]}. La <b>stima</b> è quanto l'app si aspetta che faccia in questa partita.${st === "rif" ? " Sotto c'è la sua media stagionale, con la freccia che dice di quanto la partita lo spinge sopra o sotto." : " La linea è quella che l'app propone di giocare."} Le giocate consigliate restano prudenti (70%), per questo possono sembrare basse rispetto alla stima.`; };
 function tabelloneRosa(D, p, picks) {
   if (!p.giocatori || !p.giocatori.length) return "";
   const st = stileLinee();
-  return `<h2>Previsioni del quintetto</h2><div class="card" style="padding:10px 12px"><div class="s" style="margin-bottom:6px">Che linea vuoi vedere per ogni giocatore?</div><div class="tabs">${Object.entries(STILI).map(([k, v]) => `<button class="chipbtn${st === k ? " on" : ""}" data-stile7="${k}">${v[0]}</button>`).join("")}</div><div class="cap" style="margin:6px 0 0"><b>${STILI[st][0]}</b>: ${STILI[st][2]}. La <b>stima</b> è quanto l'app si aspetta che faccia; la linea è quella che propone di giocare. Le giocate consigliate sono sempre prudenti (70%), per questo possono sembrare basse rispetto alla stima.</div></div><div id="tabrosa">${corpoTabellone(D, p, picks)}</div>`;
+  return `<h2>Previsioni del quintetto</h2><div class="card" style="padding:10px 12px"><div class="s" style="margin-bottom:6px">Che linea vuoi vedere per ogni giocatore?</div><div class="tabs">${Object.entries(STILI).map(([k, v]) => `<button class="chipbtn${st === k ? " on" : ""}" data-stile7="${k}">${v[0]}</button>`).join("")}</div><div class="cap" style="margin:6px 0 0">${descrStile()}</div></div><div id="tabrosa">${corpoTabellone(D, p, picks)}</div>`;
 }
 document.addEventListener("click", (e) => {
-  const s = e.target.closest && e.target.closest("[data-stile7]"); if (s) { ls.set("stileLinee", s.dataset.stile7); const D = window.__D, id = (location.hash.match(/partita\/([^/?]+)/) || [])[1], p = D && D.partite.find((x) => String(x.id) === id); if (p) { const picks = D.picks || [], cont = document.getElementById("tabrosa"); if (cont) { cont.parentElement.querySelectorAll("[data-stile7]").forEach((b) => b.classList.toggle("on", b.dataset.stile7 === s.dataset.stile7)); cont.innerHTML = corpoTabellone(D, p, picks); const cap = cont.previousElementSibling; if (cap) { const c = cap.querySelector(".cap"); if (c) c.innerHTML = `<b>${STILI[stileLinee()][0]}</b>: ${STILI[stileLinee()][2]}. La <b>stima</b> è quanto l'app si aspetta che faccia; la linea è quella che propone di giocare. Le giocate consigliate sono sempre prudenti (70%), per questo possono sembrare basse rispetto alla stima.`; } } } return; }
+  const s = e.target.closest && e.target.closest("[data-stile7]"); if (s) { ls.set("stileLinee", s.dataset.stile7); const D = window.__D, id = (location.hash.match(/partita\/([^/?]+)/) || [])[1], p = D && D.partite.find((x) => String(x.id) === id); if (p) { const picks = D.picks || [], cont = document.getElementById("tabrosa"); if (cont) { cont.parentElement.querySelectorAll("[data-stile7]").forEach((b) => b.classList.toggle("on", b.dataset.stile7 === s.dataset.stile7)); cont.innerHTML = corpoTabellone(D, p, picks); const cap = cont.previousElementSibling; if (cap) { const c = cap.querySelector(".cap"); if (c) c.innerHTML = descrStile(); } } } return; }
   const b = e.target.closest && e.target.closest("[data-add7]"); if (!b) return;
   const [pid, k, t, pr] = b.dataset.add7.split("|"), D = window.__D, id = (location.hash.match(/partita\/([^/?]+)/) || [])[1], g = D && D.partite.find((x) => String(x.id) === id); if (!g) return;
   const leg = probCustom(g, { g: g.id, k, dir: "over", pid, sq: null, soglia: +t }); if (!leg) return; leg.prob = +pr;

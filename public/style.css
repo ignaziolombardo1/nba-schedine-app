@@ -407,3 +407,5 @@ nav,#miabar{transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);wi
 .tb-l{font-size:12px;margin-top:2px}
 .tb-add{width:22px;height:22px;border-radius:7px;border:1px solid var(--or);background:transparent;color:var(--or);font-size:14px;line-height:1;margin-left:4px;padding:0}
 .tb-add.on{background:var(--or);color:#000}
+.vd{display:inline-block;margin-top:6px;padding:3px 8px;border:1px solid;border-radius:10px;font-size:12px;font-weight:700;line-height:1.4}
+.vd .tb-add{margin-left:6px;vertical-align:middle}
