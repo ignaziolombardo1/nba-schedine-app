@@ -81,7 +81,7 @@ function corpoRosa(D, p, picks) {
 }
 function rosaPartita(D, p, picks) {
   if (!p.giocatori || !p.giocatori.length) return "";
-  return `<h2>Formazioni e giocatori</h2><div class="card" style="padding:10px 12px"><div class="ro-leg"><span><i class="ro-sw top"></i> Top: tra i 3 migliori della partita</span><span><i class="ro-sw ok"></i> Giocata consigliata</span><span><i class="ro-sw dub"></i> In dubbio</span></div><div class="cap" style="margin:6px 0 0">Tocca un giocatore per vedere forma, minuti e il motivo delle giocate.</div></div><div id="rosa">${corpoRosa(D, p, picks)}</div>`;
+  return (typeof tabelloneRosa === "function" ? tabelloneRosa(D, p, window.__picksRosa || (D.picks || [])) : "") + `<h2>Formazioni e giocatori</h2><div class="card" style="padding:10px 12px"><div class="ro-leg"><span><i class="ro-sw top"></i> Top: tra i 3 migliori della partita</span><span><i class="ro-sw ok"></i> Giocata consigliata</span><span><i class="ro-sw dub"></i> In dubbio</span></div><div class="cap" style="margin:6px 0 0">Tocca un giocatore per vedere forma, minuti e il motivo delle giocate.</div></div><div id="rosa">${corpoRosa(D, p, picks)}</div>`;
 }
 // dopo il disegno: se ESPN ha pubblicato i quintetti li prende e ridisegna (restano aperti i giocatori già aperti)
 async function rosaUfficiale(D, p, picks) {
@@ -91,6 +91,7 @@ async function rosaUfficiale(D, p, picks) {
     const el = document.getElementById("rosa"); if (!el || !q.pubblicato) return;
     const aperti = new Set([...el.querySelectorAll("details.ro[open] .tn")].map((e) => e.firstChild ? e.firstChild.textContent.trim() : ""));
     el.innerHTML = corpoRosa(D, p, picks);
+    const tb = document.getElementById("tabrosa"); if (tb && typeof corpoTabellone === "function") tb.innerHTML = corpoTabellone(D, p, picks);
     el.querySelectorAll("details.ro").forEach((d) => { const n = d.querySelector(".tn"); if (n && n.firstChild && aperti.has(n.firstChild.textContent.trim())) d.open = true; });
   } catch {}
 }
@@ -101,3 +102,57 @@ function graficoPick(x, q) {
   if (!k || !m || !x.ult || !x.ult[k]) return "";
   return typeof graficoUltime === "function" ? graficoUltime(x.ult[k], +m[2]) : "";
 }
+
+// ---- v120: tabellone del quintetto: per ogni titolare (e i 3 panchinari che giocano di più) stima, linea secondo lo stile scelto e linea del bookmaker
+const STILI = { pru: ["Prudente", 0.70, "linea alta che si supera 7 volte su 10"], equ: ["Equilibrato", 0.55, "linea che si supera poco più di una volta su due"], amb: ["Ambizioso", 0.45, "linea vicina alla stima: rende di più ma si centra meno"] };
+const stileLinee = () => { const v = ls.get("stileLinee", "pru"); return STILI[v] ? v : "pru"; };
+const NOMI_K = { pts: ["PT", "punti", "Punti"], reb: ["RB", "rimbalzi", "Rimbalzi"], ast: ["AS", "assist", "Assist"] };
+const virg = (n) => vir(n);
+// la linea più alta che il giocatore supera con almeno la probabilità dello stile (0,97 = rischio che non scenda in campo, come nelle giocate)
+function lineaStile(o, sogl) {
+  const pg = o.pg == null ? 1 : o.pg; let best = null;
+  for (const [t, p] of o.lad || []) { const pe = p * pg * 0.97; if (pe >= sogl && (!best || t > best.t)) best = { t, p: pe }; }
+  return best;
+}
+// perché la stima è questa: minuti, forma, difesa avversaria, compagni fuori, bookmaker
+function spiegaStima(x) {
+  const a = [`gioca circa ${Math.round(x.min)} minuti`];
+  if (x.minBase - x.min >= 1.5) a[0] += ` (meno del solito: partita che può finire presto)`;
+  const f = statoForma(x); if (f.k !== "nd") a.push(`punti: ${f.t.toLowerCase()} (ultime 5 a ${virg(f.m5)} contro ${virg(x.stagione || x.pts.media)} di media)`);
+  if (x.dif && Math.abs(x.dif) >= 1) a.push(x.dif > 0 ? `difesa avversaria permissiva (+${virg(x.dif)}% sui punti)` : `difesa avversaria dura (${virg(x.dif)}% sui punti)`);
+  if (x.assenze && x.assenze.length) { const b = x.boost || {}, parti = ["pts", "reb", "ast"].filter((k) => b[k] >= 0.3).map((k) => `+${virg(b[k])} ${NOMI_K[k][1]}`); a.push(`senza ${x.assenze.join(" e ")} ha più spazio${parti.length ? ` (${parti.join(", ")})` : ""}`); }
+  if (x.inf === "dubbio") a.push("è in dubbio: le probabilità tengono conto che potrebbe non giocare");
+  const mk = ["pts", "reb", "ast"].filter((k) => x[k] && x[k].mk).map((k) => `${NOMI_K[k][1]} ${x[k].mk.linea} (${Math.round(x[k].mk.pMk * 100)}% over)`);
+  if (mk.length) a.push(`il bookmaker segna ${mk.join(", ")}: la stima finale unisce modello e mercato`);
+  return a.join("; ").replace(/^./, (c) => c.toUpperCase()) + ".";
+}
+function cellaStat(x, k, st) {
+  const o = x[k]; if (!o) return "";
+  const b = lineaStile(o, STILI[st][1]), mk = o.mk ? `<div class="s">book ${o.mk.linea} · <b style="color:${colProb(o.mk.pFin)}">${Math.round(o.mk.pFin * 100)}%</b></div>` : "";
+  return `<div class="tb-c"><div class="s">${NOMI_K[k][0]}</div><div class="tb-v">${virg(o.v)}</div>${b ? `<div class="tb-l">over <b>${b.t}</b> <span style="color:${colProb(b.p)}">${Math.round(b.p * 100)}%</span> <button class="tb-add" data-add7="${esc(x.pid || "")}|${k}|${b.t}|${b.p.toFixed(4)}" aria-label="Aggiungi alla schedina">+</button></div>` : `<div class="s">nessuna linea</div>`}${mk}</div>`;
+}
+function cardTabellone(x, ruolo, picks) {
+  const f = statoForma(x), n = picks.filter((q) => q.pid && q.pid === x.pid).length;
+  return `<div class="tb ${x.inf === "dubbio" ? "ro-dub" : ""}"><div class="lg">${foto(x.pid, 38)}<div style="min-width:0;flex:1"><div class="tn">${esc(x.nome)}${x.inf === "dubbio" ? ` <span style="color:${AM}">⚠</span>` : ""}</div><div class="s"><span class="pill ro-tg" style="margin:0 6px 0 0">${ruolo}</span><span style="color:${f.col}"><i class="ti ${f.ico}"></i> ${f.t}</span> · ${Math.round(x.min)} min</div></div></div><div class="tb-g">${["pts", "reb", "ast"].map((k) => cellaStat(x, k, stileLinee())).join("")}</div><div class="cap" style="margin:6px 0 0">${esc(spiegaStima(x))}</div></div>`;
+}
+function corpoTabellone(D, p, picks) {
+  const uff = rosaUff[p.id], st = stileLinee();
+  return [p.casa, p.trasf].map((sq) => {
+    const lista = p.giocatori.filter((x) => x.sq === sq); let tit = uff && uff.pubblicato ? lista.filter((x) => x.pid && uff.titolari[x.pid]) : []; const ufficiale = tit.length > 0; if (!tit.length) tit = titolariStimati(lista);
+    const inT = new Set(tit.map((x) => x.pid || x.nome)), panca = lista.filter((x) => !inT.has(x.pid || x.nome)).sort((a, b) => b.min - a.min).slice(0, 3);
+    return `<div class="sub" style="display:flex;align-items:center;gap:8px">${logo(sq, 22)}${esc(T(D, sq).n)} <span class="s">${ufficiale ? "quintetto ufficiale" : "quintetto probabile"}</span></div>` + tit.map((x) => cardTabellone(x, "T", picks)).join("") + (panca.length ? `<div class="s" style="margin:10px 0 4px">Dalla panchina, i più utilizzati</div>` + panca.map((x) => cardTabellone(x, "P", picks)).join("") : "");
+  }).join("");
+}
+function tabelloneRosa(D, p, picks) {
+  if (!p.giocatori || !p.giocatori.length) return "";
+  const st = stileLinee();
+  return `<h2>Previsioni del quintetto</h2><div class="card" style="padding:10px 12px"><div class="s" style="margin-bottom:6px">Che linea vuoi vedere per ogni giocatore?</div><div class="tabs">${Object.entries(STILI).map(([k, v]) => `<button class="chipbtn${st === k ? " on" : ""}" data-stile7="${k}">${v[0]}</button>`).join("")}</div><div class="cap" style="margin:6px 0 0"><b>${STILI[st][0]}</b>: ${STILI[st][2]}. La <b>stima</b> è quanto l'app si aspetta che faccia; la linea è quella che propone di giocare. Le giocate consigliate sono sempre prudenti (70%), per questo possono sembrare basse rispetto alla stima.</div></div><div id="tabrosa">${corpoTabellone(D, p, picks)}</div>`;
+}
+document.addEventListener("click", (e) => {
+  const s = e.target.closest && e.target.closest("[data-stile7]"); if (s) { ls.set("stileLinee", s.dataset.stile7); const D = window.__D, id = (location.hash.match(/partita\/([^/?]+)/) || [])[1], p = D && D.partite.find((x) => String(x.id) === id); if (p) { const picks = D.picks || [], cont = document.getElementById("tabrosa"); if (cont) { cont.parentElement.querySelectorAll("[data-stile7]").forEach((b) => b.classList.toggle("on", b.dataset.stile7 === s.dataset.stile7)); cont.innerHTML = corpoTabellone(D, p, picks); const cap = cont.previousElementSibling; if (cap) { const c = cap.querySelector(".cap"); if (c) c.innerHTML = `<b>${STILI[stileLinee()][0]}</b>: ${STILI[stileLinee()][2]}. La <b>stima</b> è quanto l'app si aspetta che faccia; la linea è quella che propone di giocare. Le giocate consigliate sono sempre prudenti (70%), per questo possono sembrare basse rispetto alla stima.`; } } } return; }
+  const b = e.target.closest && e.target.closest("[data-add7]"); if (!b) return;
+  const [pid, k, t, pr] = b.dataset.add7.split("|"), D = window.__D, id = (location.hash.match(/partita\/([^/?]+)/) || [])[1], g = D && D.partite.find((x) => String(x.id) === id); if (!g) return;
+  const leg = probCustom(g, { g: g.id, k, dir: "over", pid, sq: null, soglia: +t }); if (!leg) return; leg.prob = +pr;
+  const L = miaLeggi(); if (!L.some((l) => l.pid === leg.pid && l.k === leg.k && l.soglia === leg.soglia)) { L.push(leg); ls.set("mia", L); barraMia(); }
+  b.textContent = "✓"; b.classList.add("on");
+});

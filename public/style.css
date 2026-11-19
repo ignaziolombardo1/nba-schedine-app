@@ -398,3 +398,12 @@ nav,#miabar{transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);wi
 .stp{display:flex;align-items:center;gap:8px;margin-top:6px}
 .stp button{width:30px;height:28px;border-radius:9px;border:1px solid var(--line);background:var(--chip);color:var(--txt);font-size:16px;line-height:1}
 .stp span{font-size:13px}
+
+/* v120: previsioni del quintetto */
+.tb{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:6px 0;padding:10px}
+.tb-g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.tb-c{background:var(--bg2,rgba(255,255,255,.04));border-radius:10px;padding:6px 7px;text-align:center}
+.tb-v{font-size:20px;font-weight:700;line-height:1.1}
+.tb-l{font-size:12px;margin-top:2px}
+.tb-add{width:22px;height:22px;border-radius:7px;border:1px solid var(--or);background:transparent;color:var(--or);font-size:14px;line-height:1;margin-left:4px;padding:0}
+.tb-add.on{background:var(--or);color:#000}
