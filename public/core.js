@@ -40,7 +40,7 @@ async function api(path, ttl = 0) {
   const c = cache[path];
   if (c && Date.now() - c.t < ttl) return c.d;
   const r = await fetch(path);
-  const d = await r.json();
+  const txt = await r.text(); let d; try { d = JSON.parse(txt); } catch { throw new Error(`Il server ha risposto con un errore (${r.status}): ${String(txt).replace(/\s+/g, " ").slice(0, 120) || "risposta vuota"}`); }
   if (!r.ok || d.errore) throw new Error(d.errore || "Errore " + r.status);
   cache[path] = { t: Date.now(), d };
   if (path.startsWith("/api/giorno")) salvaLocale(path, d);
