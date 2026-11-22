@@ -65,3 +65,22 @@ function anello(p, col, size = 52) {
   return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#232836" stroke-width="6"/><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(L * p / 100).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="#f2f2f2" font-size="${size > 60 ? 18 : 13}" font-weight="600">${Math.round(p)}%</text></svg>`;
 }
 const colProb = (p) => (p >= 0.85 ? "#3ddc84" : p >= 0.78 ? "#9be564" : p >= 0.72 ? "#ffc24a" : OR);
+
+// ---- aggiornamento "morbido": confronta il nuovo HTML con quello già in pagina e tocca solo ciò che è cambiato (logo e foto non si ricaricano, niente lampeggio)
+function morph(el, html) {
+  const t = document.createElement("template"); t.innerHTML = html; morphFigli(el, t.content);
+}
+function morphFigli(a, b) {
+  const A = [...a.childNodes], B = [...b.childNodes];
+  for (let i = 0; i < B.length; i++) {
+    if (!A[i]) { a.appendChild(B[i]); continue; }
+    const x = A[i], y = B[i];
+    if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) { x.replaceWith(y); continue; }
+    if (x.nodeType !== 1) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; continue; }
+    if (x === document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(x.nodeName)) continue;
+    for (const at of [...x.attributes]) if (!y.hasAttribute(at.name) && !(x.nodeName === "DETAILS" && at.name === "open")) x.removeAttribute(at.name);
+    for (const at of [...y.attributes]) if (x.getAttribute(at.name) !== at.value && !(x.nodeName === "DETAILS" && at.name === "open")) x.setAttribute(at.name, at.value);
+    morphFigli(x, y);
+  }
+  for (let i = A.length - 1; i >= B.length; i--) A[i].remove();
+}

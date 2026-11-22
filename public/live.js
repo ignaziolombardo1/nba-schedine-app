@@ -122,7 +122,7 @@ async function vistaLive(primo = true) {
     for (const [k, h] of B) {
       const el = APP.querySelector(`[data-blk="${k}"]`); if (!el || bloccoLive[k] === h) continue;
       const aperti = [...el.querySelectorAll("details")].map((d) => d.open);
-      el.innerHTML = h; bloccoLive[k] = h;
+      morph(el, h); bloccoLive[k] = h;
       el.querySelectorAll("details").forEach((d, i) => { if (aperti[i]) d.open = true; });
     }
   } else {

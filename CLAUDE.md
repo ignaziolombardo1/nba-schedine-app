@@ -83,3 +83,6 @@ Classifica privata del gruppo (serve un accesso/identità), notifiche per altri 
 - v122: `api()` (core.js) legge il testo e, se la risposta non è JSON (errore di Cloudflare, es. «error code: 1102»), mostra codice HTTP e primi 120 caratteri invece del messaggio di Safari «The string did not match the expected pattern».
 
 - v123: `/api/live` più leggero (se non ci sono partite in corso risponde subito senza modello; include le partite iniziate ieri ancora in corso). Taratura per giocatore (`calcolaCalib` → `_giocatori` in `_calib`, almeno 5 esiti, K=8, fattore 0,85–1,08, applicata in `applicaCalib`). Previsioni del quintetto: riga «Doppia doppia / tripla doppia» (`rigaDD`, idee7.js, solo informativa).
+
+- v124: Live si aggiorna con `morph(el, html)` (core.js): confronta il nuovo HTML con quello in pagina e cambia solo i nodi diversi, così logo e foto non si ricaricano né lampeggiano.
+- v125: `idee9.js`, `#/combopartita` «Combo di partita» (`comboPartita`, `lineeCombo`): squadra favorita vince + giocatore chiave over con linea più alta (o linea del bookmaker se c'è); quota stimata = 1/probabilità unita × 0,9, probabilità unita con piccolo bonus di correlazione (1,06); filtro per quota minima 2/3/4/6/8; «Aggiungi alla mia schedina» inserisce le due gambe. In `HUB` (idee4.js).
