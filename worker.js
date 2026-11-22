@@ -133,12 +133,30 @@ function calcolaCalib(righe) {
     const K = 20, predM = c.pred / c.n, oss = (c.hit + K * predM) / (c.n + K); // pochi dati: ci si fida del modello
     out[t] = { n: c.n, fattore: Math.max(0.8, Math.min(1.05, oss / predM)), previsto: predM, reale: c.hit / c.n };
   }
+  // correzione per singolo giocatore: pochi dati -> ci si fida del modello (K=8), correzione limitata
+  const pg = {};
+  for (const r of righe) {
+    if (r.esito !== 0 && r.esito !== 1) continue; if (r.creato && String(r.creato) < MODELLO_DAL) continue;
+    if (!["Punti", "Rimbalzi", "Assist", "Giocatore"].includes(r.tipo) && !/^\d+$/.test(String(r.chiave || "").split("|")[2] || "")) continue;
+    const pid = String(r.chiave || "").split("|")[2]; if (!pid || !/^\d+$/.test(pid)) continue;
+    const c = (pg[pid] ||= { n: 0, hit: 0, pred: 0 }); c.n++; c.hit += r.esito; c.pred += r.prob;
+  }
+  const gi = {};
+  for (const [pid, c] of Object.entries(pg)) {
+    if (c.n < 5) continue;
+    const predM = c.pred / c.n, oss = (c.hit + 8 * predM) / (c.n + 8);
+    const f = Math.max(0.85, Math.min(1.08, oss / predM)); if (Math.abs(f - 1) >= 0.02) gi[pid] = { n: c.n, f, previsto: predM, reale: c.hit / c.n };
+  }
+  if (Object.keys(gi).length) out._giocatori = gi;
   return out;
 }
 function applicaCalib(picks, calib) {
   if (!calib || !Object.keys(calib).length) return picks;
-  return picks.map((p) => { const c = calib[p.tipo]; if (!c || Math.abs(c.fattore - 1) < 0.01) return p;
-    return { ...p, probGrezza: p.prob, prob: Math.min(0.97, p.prob * c.fattore), motivo: p.motivo + ` (Percentuale tarata sullo Storico: finora ${p.tipo} previsti al ${Math.round(c.previsto * 100)}%, centrati al ${Math.round(c.reale * 100)}%.)` }; }).sort((a, b) => b.prob - a.prob);
+  return picks.map((p) => { const c = calib[p.tipo], g = p.pid && calib._giocatori ? calib._giocatori[p.pid] : null, ct = c && Math.abs(c.fattore - 1) >= 0.01 ? c : null; if (!ct && !g) return p;
+    let prob = p.prob, nota = "";
+    if (ct) { prob *= ct.fattore; nota += ` (Percentuale tarata sullo Storico: finora ${p.tipo} previsti al ${Math.round(ct.previsto * 100)}%, centrati al ${Math.round(ct.reale * 100)}%.)`; }
+    if (g) { prob *= g.f; nota += ` (Correzione sul giocatore: in ${g.n} giocate passate previsto ${Math.round(g.previsto * 100)}%, centrato ${Math.round(g.reale * 100)}%.)`; }
+    return { ...p, probGrezza: p.prob, prob: Math.min(0.97, prob), motivo: p.motivo + nota }; }).sort((a, b) => b.prob - a.prob);
 }
 async function salvaCalib(env, righe) {
   const c = calcolaCalib(righe);
@@ -536,7 +554,7 @@ async function apiDiag(env) {
   });
   await prova("Taratura sullo Storico", async () => {
     if (!dbOk(env)) throw new Error("serve Supabase");
-    const c = (await leggiForma(env)).calib || {}; const k = Object.keys(c);
+    const c = (await leggiForma(env)).calib || {}; const k = Object.keys(c).filter((x) => x !== "_giocatori");
     return k.length ? k.map((t) => `${t} ×${c[t].fattore.toFixed(2)} (${c[t].n} esiti)`).join(" · ") : "non ancora attiva: servono almeno 25 esiti per categoria";
   });
   await prova("Calendario squadra (ultimi incontri)", async () => `${(await caricaUltime("BOS")).length} partite trovate per BOS`);
@@ -675,10 +693,12 @@ async function apiStorico(env) {
 
 
 async function apiLive(env) {
-  const [g, gPrima, stat] = await Promise.all([caricaGiorno(0, null, 5), caricaGiorno(-1, null, 5).catch(() => ({ partite: [] })), caricaStatistiche()]);
-  const fm = await leggiForma(env);
+  const [g, gPrima] = await Promise.all([caricaGiorno(0, null, 5), caricaGiorno(-1, null, 5).catch(() => ({ partite: [] }))]);
   const visti = new Set(g.partite.map((p) => p.id));
   g.partite = [...g.partite, ...gPrima.partite.filter((p) => p.stato === "in" && !visti.has(p.id))];
+  // nessuna partita in corso: basta l'elenco, senza costruire il modello (evita di superare i limiti di Cloudflare)
+  if (!g.partite.some((p) => p.stato === "in")) return { aggiornato: new Date().toISOString(), squadre: {}, partite: [], totali: g.partite.length, finite: g.partite.filter((x) => x.stato === "post").length, prossime: g.partite.filter((x) => x.stato === "pre").map((x) => ({ id: x.id, casa: x.casa, trasf: x.trasf, ora: x.ora })) };
+  const [stat, fm] = await Promise.all([caricaStatistiche(), leggiForma(env)]);
   let infortuni = {}; try { infortuni = await caricaInfortuni(); } catch {}
   const gare = costruisci(g.partite, stat.teams, stat.players, infortuni, [...new Set(g.ieri.flatMap((p) => [p.casa, p.trasf]))], fm.mappa, fm.quote, {}, fm.squadre);
   const picks = consigli(gare);

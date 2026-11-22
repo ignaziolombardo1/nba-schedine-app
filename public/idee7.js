@@ -145,7 +145,16 @@ function cellaStat(x, k, st) {
 }
 function cardTabellone(x, ruolo, picks) {
   const f = statoForma(x), n = picks.filter((q) => q.pid && q.pid === x.pid).length;
-  return `<div class="tb ${x.inf === "dubbio" ? "ro-dub" : ""}"><div class="lg">${foto(x.pid, 38)}<div style="min-width:0;flex:1"><div class="tn">${esc(x.nome)}${x.inf === "dubbio" ? ` <span style="color:${AM}">⚠</span>` : ""}</div><div class="s"><span class="pill ro-tg" style="margin:0 6px 0 0">${ruolo}</span><span style="color:${f.col}"><i class="ti ${f.ico}"></i> ${f.t}</span> · ${Math.round(x.min)} min</div></div></div><div class="tb-g">${["pts", "reb", "ast"].map((k) => cellaStat(x, k, stileLinee())).join("")}</div><div class="cap" style="margin:6px 0 0">${esc(spiegaStima(x))}</div></div>`;
+  return `<div class="tb ${x.inf === "dubbio" ? "ro-dub" : ""}"><div class="lg">${foto(x.pid, 38)}<div style="min-width:0;flex:1"><div class="tn">${esc(x.nome)}${x.inf === "dubbio" ? ` <span style="color:${AM}">⚠</span>` : ""}</div><div class="s"><span class="pill ro-tg" style="margin:0 6px 0 0">${ruolo}</span><span style="color:${f.col}"><i class="ti ${f.ico}"></i> ${f.t}</span> · ${Math.round(x.min)} min</div></div></div><div class="tb-g">${["pts", "reb", "ast"].map((k) => cellaStat(x, k, stileLinee())).join("")}</div>${rigaDD(x)}<div class="cap" style="margin:6px 0 0">${esc(spiegaStima(x))}</div></div>`;
+}
+// probabilità di doppia e tripla doppia (solo informativo): P(stat >= 10) per punti, rimbalzi, assist, tenendo conto che potrebbe non giocare
+function rigaDD(x) {
+  const o = ["pts", "reb", "ast"].map((k) => x[k]); if (o.some((q) => !q || !(q.sd > 0))) return "";
+  const pg = o[0].pg == null ? 1 : o[0].pg, p = o.map((q) => Math.min(0.995, Math.max(0.001, 1 - phi((9.5 - q.v) / q.sd))));
+  const [a, b, c] = p, dd = (a * b + a * c + b * c - 2 * a * b * c) * pg * 0.97, td = a * b * c * pg * 0.97, dd2 = Math.max(dd, td);
+  if (dd2 < 0.12) return "";
+  const col = (v) => v >= 0.5 ? GR : v >= 0.25 ? AM : "var(--mu,#8a93a6)";
+  return `<div class="s" style="margin-top:6px">Doppia doppia <b style="color:${col(dd2)}">${Math.round(dd2 * 100)}%</b>${td >= 0.05 ? ` · tripla doppia <b style="color:${col(td)}">${Math.round(td * 100)}%</b>` : ""}</div>`;
 }
 function corpoTabellone(D, p, picks) {
   const uff = rosaUff[p.id], st = stileLinee();

@@ -81,3 +81,5 @@ Classifica privata del gruppo (serve un accesso/identità), notifiche per altri 
 - v121: «Previsioni del quintetto» ora parte dallo stile «Può farli?» (`verdetto`, `cellaRif` in idee7.js): per ogni giocatore e statistica la linea del bookmaker (o quella vicina alla media stagione, `lineaMedia`), la stima per la partita, la media con freccia ▲▼ e un verdetto (Può farli ≥ 60%, Al limite 45-60%, Difficile < 45%, probabilità × `pg` × 0,97). Gli stili Prudente/Equilibrato/Ambizioso restano selezionabili.
 
 - v122: `api()` (core.js) legge il testo e, se la risposta non è JSON (errore di Cloudflare, es. «error code: 1102»), mostra codice HTTP e primi 120 caratteri invece del messaggio di Safari «The string did not match the expected pattern».
+
+- v123: `/api/live` più leggero (se non ci sono partite in corso risponde subito senza modello; include le partite iniziate ieri ancora in corso). Taratura per giocatore (`calcolaCalib` → `_giocatori` in `_calib`, almeno 5 esiti, K=8, fattore 0,85–1,08, applicata in `applicaCalib`). Previsioni del quintetto: riga «Doppia doppia / tripla doppia» (`rigaDD`, idee7.js, solo informativa).
