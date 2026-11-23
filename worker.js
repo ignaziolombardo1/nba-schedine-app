@@ -692,15 +692,25 @@ async function apiStorico(env) {
 }
 
 
+const MEM_LIVE = new Map(); let MEM_DATI = null;
 async function apiLive(env) {
   const [g, gPrima] = await Promise.all([caricaGiorno(0, null, 5), caricaGiorno(-1, null, 5).catch(() => ({ partite: [] }))]);
   const visti = new Set(g.partite.map((p) => p.id));
   g.partite = [...g.partite, ...gPrima.partite.filter((p) => p.stato === "in" && !visti.has(p.id))];
   // nessuna partita in corso: basta l'elenco, senza costruire il modello (evita di superare i limiti di Cloudflare)
   if (!g.partite.some((p) => p.stato === "in")) return { aggiornato: new Date().toISOString(), squadre: {}, partite: [], totali: g.partite.length, finite: g.partite.filter((x) => x.stato === "post").length, prossime: g.partite.filter((x) => x.stato === "pre").map((x) => ({ id: x.id, casa: x.casa, trasf: x.trasf, ora: x.ora })) };
-  const [stat, fm] = await Promise.all([caricaStatistiche(), leggiForma(env)]);
-  let infortuni = {}; try { infortuni = await caricaInfortuni(); } catch {}
-  const gare = costruisci(g.partite, stat.teams, stat.players, infortuni, [...new Set(g.ieri.flatMap((p) => [p.casa, p.trasf]))], fm.mappa, fm.quote, {}, fm.squadre);
+  // modello solo per le partite in corso e conservato in memoria per qualche minuto: così ogni aggiornamento (ogni 6 secondi) costa pochissimo
+  const inCorsoP = g.partite.filter((x) => x.stato === "in"), ora0 = Date.now();
+  for (const [k, v] of MEM_LIVE) if (ora0 - v.t > 15 * 60000) MEM_LIVE.delete(k);
+  const mancanti = inCorsoP.filter((p) => !MEM_LIVE.has(p.id));
+  if (mancanti.length || !MEM_DATI || ora0 - MEM_DATI.t > 10 * 60000) {
+    const [stat, fm0] = await Promise.all([caricaStatistiche(), leggiForma(env)]);
+    let infortuni = {}; try { infortuni = await caricaInfortuni(); } catch {}
+    MEM_DATI = { t: ora0, fm: fm0 };
+    for (const x of costruisci(mancanti, stat.teams, stat.players, infortuni, [...new Set(g.ieri.flatMap((p) => [p.casa, p.trasf]))], fm0.mappa, fm0.quote, {}, fm0.squadre)) MEM_LIVE.set(x.id, { t: ora0, x });
+  }
+  const fm = MEM_DATI.fm;
+  const gare = inCorsoP.map((p) => MEM_LIVE.has(p.id) ? { ...MEM_LIVE.get(p.id).x, ...p } : null).filter(Boolean);
   const picks = consigli(gare);
   const inCorso = gare.filter((x) => x.stato === "in");
   const out = await Promise.all(inCorso.map(async (x) => {
@@ -721,7 +731,7 @@ async function apiLive(env) {
       r: x.r, mercato, giocatori: gioc, picks: mie, segnali: segnaliLive(ga, box, x.giocatori).slice(0, 8) };
   }));
   const sq = {}; out.forEach((x) => { sq[x.casa] = info(x.casa); sq[x.trasf] = info(x.trasf); });
-  return { aggiornato: new Date().toISOString(), squadre: sq, partite: out, totali: gare.length, finite: gare.filter((x) => x.stato === "post").length, prossime: gare.filter((x) => x.stato === "pre").map((x) => ({ id: x.id, casa: x.casa, trasf: x.trasf, ora: x.ora })) };
+  return { aggiornato: new Date().toISOString(), squadre: sq, partite: out, totali: g.partite.length, finite: g.partite.filter((x) => x.stato === "post").length, prossime: g.partite.filter((x) => x.stato === "pre").map((x) => ({ id: x.id, casa: x.casa, trasf: x.trasf, ora: x.ora })) };
 }
 
 export default {
