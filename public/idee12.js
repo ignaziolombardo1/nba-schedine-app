@@ -2,6 +2,11 @@
 "use strict";
 
 const _rispondi0 = rispondi;
+// etichetta di forma accanto al giocatore: «in forma» se nelle ultime 5 partite rende molto sopra la media
+function tagForma(g) {
+  try { const f = statoForma(g); if (f.k === "su") return ` · 🔥 in forma (+${Math.round(f.d * 100)}% nelle ultime 5)`; if (f.k === "giu") return ` · in calo (${Math.round(f.d * 100)}%)`; } catch {}
+  return "";
+}
 rispondi = function (D, q) {
   const t = String(q).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""), P = D.partite || [], pre = P.filter((p) => p.stato === "pre"), B = (ab) => T(D, ab).b;
   const sq = Object.keys(D.squadre || {}).filter((ab) => (" " + t + " ").includes(" " + ab.toLowerCase() + " ") || t.includes(String(B(ab)).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")));
@@ -18,7 +23,7 @@ rispondi = function (D, q) {
       if (pr >= (td ? 0.03 : 0.15)) L.push({ g, p, pr });
     }
     L.sort((a, b) => b.pr - a.pr);
-    return { t: L.length ? `Giocatori con più probabilità di fare una ${td ? "tripla" : "doppia"} doppia:` : `Nessun giocatore ha una probabilità significativa di ${td ? "tripla" : "doppia"} doppia.`, l: L.slice(0, 10).map((o) => ({ href: "#/partita/" + o.p.id, a: o.g.nome, b: `${esc(gara(o.p))}`, v: pct(o.pr), c: colProb(o.pr) })) };
+    return { t: L.length ? `Giocatori con più probabilità di fare una ${td ? "tripla" : "doppia"} doppia:` : `Nessun giocatore ha una probabilità significativa di ${td ? "tripla" : "doppia"} doppia.`, l: L.slice(0, 10).map((o) => ({ href: "#/partita/" + o.p.id, a: o.g.nome, b: `${esc(gara(o.p))}${tagForma(o.g)}`, v: pct(o.pr), c: colProb(o.pr) })) };
   }
   // infortuni / assenti
   if (/infortun|assent|fuori|out\b|dubbio|non gioca|squalific/.test(t)) {
@@ -39,17 +44,36 @@ rispondi = function (D, q) {
   // combo
   if (/combo|combinat|doppia giocata|vince e|vince \+/.test(t) && typeof comboPartita === "function") {
     const L = comboPartita(D, 2).filter((c) => !sq.length || sq.includes(c.g.casa) || sq.includes(c.g.trasf));
-    return { t: L.length ? "Combo «la favorita vince + il suo giocatore chiave»:" : "Non ci sono combo disponibili.", l: L.slice(0, 8).map((c) => ({ href: "#/combopartita", a: `${B(c.fav)} vince + ${c.pl.nome} over ${c.l.t}`, b: `quota circa ${c.l.q.toFixed(2)}`, v: pct(c.l.joint), c: colProb(c.l.joint) })) };
+    return { t: L.length ? "Combo: la favorita vince + punti del giocatore, oppure + over sui punti totali:" : "Non ci sono combo disponibili.", l: L.slice(0, 10).map((c) => ({ href: "#/combopartita", a: c.tipo === "tot" ? `${B(c.fav)} vince + totale over ${c.l.t}` : `${B(c.fav)} vince + ${c.pl.nome} over ${c.l.t} punti`, b: `${esc(gara(c.g))} · quota circa ${c.l.q.toFixed(2)}${c.tipo === "pl" ? tagForma(c.pl) : ""}`, v: pct(c.l.joint), c: colProb(c.l.joint) })) };
   }
   // equilibrio / sfide punto a punto
   if (/equilibrat|punto a punto|incerta|testa a testa|sfida|serrat/.test(t)) {
     const L = [...pre].filter(dellaSq).sort((a, b) => Math.abs(a.r.pw - 0.5) - Math.abs(b.r.pw - 0.5));
     return { t: "Le partite più equilibrate secondo il modello:", l: L.slice(0, 6).map((p) => ({ href: "#/partita/" + p.id, a: gara(p), b: `${B(p.casa)} ${pct(p.r.pw)} · ${B(p.trasf)} ${pct(1 - p.r.pw)}`, v: pct(Math.max(p.r.pw, 1 - p.r.pw)), c: MU })) };
   }
+  // chi vince: la favorita con più sicurezza in cima
+  if (/vince|vincer|vincent|favorit|pronostico.*partit|chi passa/.test(t) && !/combo|vince e|vince \+/.test(t)) {
+    const L = pre.filter(dellaSq).map((p) => ({ p, fav: p.r.pw >= 0.5 ? p.casa : p.trasf, pr: Math.max(p.r.pw, 1 - p.r.pw) })).sort((a, b) => b.pr - a.pr);
+    if (L.length) {
+      const top = L[0], altra = top.fav === top.p.casa ? top.p.trasf : top.p.casa, liv = (x) => x >= 0.75 ? "molto sicura" : x >= 0.65 ? "sicura" : x >= 0.57 ? "abbastanza probabile" : "incerta";
+      return { t: `Quella di cui il modello è più sicuro: ${B(top.fav)} contro ${B(altra)} (${pct(top.pr)}, ${liv(top.pr)}). Tutte le partite, dalla più sicura:`, l: L.map((o) => ({ href: "#/partita/" + o.p.id, a: `${B(o.fav)} vince`, b: `${esc(gara(o.p))} · ${liv(o.pr)}`, v: pct(o.pr), c: colProb(o.pr) })) };
+    }
+  }
+  // chi fa N punti / rimbalzi / assist: percentuale e, per i punti, la forma
+  const nq = /(\d+(?:[.,]\d+)?)/.exec(t), kq = /rimbal/.test(t) ? "reb" : /assist/.test(t) ? "ast" : /punt|segn|canest/.test(t) ? "pts" : null;
+  if (kq && nq && /\b(fa|fanno|segna|prende|prender|serv|arriv|supera|almeno|piu di|chi)/.test(t)) {
+    const n = parseFloat(nq[1].replace(",", ".")), nomi = { pts: "punti", reb: "rimbalzi", ast: "assist" }, L = [];
+    for (const p of pre) for (const g of p.giocatori || []) {
+      if (!dellaSq({ casa: g.sq, trasf: g.sq }) || !g[kq]) continue;
+      const pr = (1 - phi((n - 0.5 - g[kq].v) / (g[kq].sd || 1))) * (g[kq].pg == null ? 1 : g[kq].pg) * 0.97; if (pr >= 0.25) L.push({ g, p, pr, v: g[kq].v });
+    }
+    L.sort((a, b) => b.pr - a.pr);
+    return { t: L.length ? `Giocatori che possono fare almeno ${n} ${nomi[kq]}, con la percentuale del modello:` : `Nessun giocatore ha almeno il 25% di arrivare a ${n} ${nomi[kq]} stasera.`, l: L.slice(0, 12).map((o) => ({ href: "#/partita/" + o.p.id, a: o.g.nome, b: `${esc(gara(o.p))} · stima ${o.v.toFixed(1).replace(".", ",")}${kq === "pts" ? tagForma(o.g) : ""}`, v: pct(o.pr), c: colProb(o.pr) })) };
+  }
   // chi è la stella / il migliore marcatore della serata
   if (/chi segna di piu|miglior marcator|top scorer|piu punti.*giocator|giocator.*piu punti|stella|mvp/.test(t)) {
     const L = pre.flatMap((p) => (p.giocatori || []).filter((g) => g.pts && dellaSq({ casa: g.sq, trasf: g.sq })).map((g) => ({ g, p }))).sort((a, b) => b.g.pts.v - a.g.pts.v).slice(0, 8);
-    return { t: "I giocatori con più punti stimati stasera:", l: L.map((o) => ({ href: "#/partita/" + o.p.id, a: o.g.nome, b: `${esc(gara(o.p))} · media ${o.g.pts.media != null ? o.g.pts.media.toFixed(1).replace(".", ",") : "-"}`, v: o.g.pts.v.toFixed(1).replace(".", ",") + " pt", c: OR })) };
+    return { t: "I giocatori con più punti stimati stasera:", l: L.map((o) => ({ href: "#/partita/" + o.p.id, a: o.g.nome, b: `${esc(gara(o.p))} · media ${o.g.pts.media != null ? o.g.pts.media.toFixed(1).replace(".", ",") : "-"}${tagForma(o.g)}`, v: o.g.pts.v.toFixed(1).replace(".", ",") + " pt", c: OR })) };
   }
   // under
   if (/\bunder\b|sotto la linea|pochi punti/.test(t) && !/meno punti|ritmo/.test(t)) {
