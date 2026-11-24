@@ -9,7 +9,7 @@ function tagForma(g) {
 }
 rispondi = function (D, q) {
   const t = String(q).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""), P = D.partite || [], pre = P.filter((p) => p.stato === "pre"), B = (ab) => T(D, ab).b;
-  const sq = Object.keys(D.squadre || {}).filter((ab) => (" " + t + " ").includes(" " + ab.toLowerCase() + " ") || t.includes(String(B(ab)).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")));
+  const sq = squadreCitate(D, q);
   const dellaSq = (p) => !sq.length || sq.includes(p.casa) || sq.includes(p.trasf);
   if (!P.length) return { t: "Non ci sono partite per questo giorno.", l: [] };
   const gara = (p) => `${B(p.casa)} - ${B(p.trasf)}`;

@@ -57,9 +57,18 @@ window.RIDEE.push([/^\/valore/, vistaValore]);
 
 // ---- 3. Chiedi al modello: domande semplici in italiano sulla serata
 const ESEMPI = ["Chi fa 25 punti stasera?", "Chi prende 10 rimbalzi?", "Migliori giocate", "Partite con più punti", "Chi vince?", "Giocate dei Lakers", "Doppia doppia stasera", "Chi è fuori?", "Che partite ci sono?", "Combo con i Lakers", "Partite più equilibrate", "Chi è in diretta?"];
+// squadre nominate nella domanda: per nome (Lakers, Celtics...) o per sigla scritta in MAIUSCOLO (LAL); «chi», «mia», «per» ecc. non valgono come sigle
+function squadreCitate(D, q) {
+  const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""), t = " " + norm(q).replace(/[^a-z0-9 ]/g, " ") + " ", maius = new Set(String(q).match(/\b[A-Z]{2,4}\b/g) || []);
+  return Object.keys(D.squadre || {}).filter((ab) => {
+    if (maius.has(ab)) return true;
+    const inf = T(D, ab), nomi = [inf.b, inf.n && String(inf.n).split(" ").pop()].map(norm).filter((x) => x.length >= 4 && x !== norm(ab));
+    return nomi.some((x) => t.includes(" " + x + " ") || t.includes(" " + x + "s ") );
+  });
+}
 function rispondi(D, q) {
   const t = q.toLowerCase(), pre = (D.partite || []).filter((p) => p.stato === "pre"), B = (ab) => T(D, ab).b;
-  const sqCit = Object.keys(D.squadre || {}).filter((ab) => t.includes(ab.toLowerCase() + " ") || (" " + t + " ").includes(" " + ab.toLowerCase() + " ") || t.includes(String(B(ab)).toLowerCase()));
+  const sqCit = squadreCitate(D, q);
   const solo = (g) => !sqCit.length || sqCit.includes(g.sq);
   const n = num3((/(\d+(?:[.,]\d+)?)/.exec(t) || [])[1]);
   const k = /rimbal/.test(t) ? "reb" : /assist/.test(t) ? "ast" : /punt|segn|canest/.test(t) ? "pts" : null;
