@@ -488,21 +488,32 @@ async function cronAvvisi(env) {
 
 
 // ---- Traduzione dei titoli delle notizie (MyMemory, gratuita): ogni titolo si traduce una volta sola e resta salvato
+async function traduciUno(env, testo) {
+  // 1) traduttore pubblico di Google (senza chiave), 2) MyMemory se il primo non risponde
+  try {
+    const u = new URL("https://translate.googleapis.com/translate_a/single"); u.searchParams.set("client", "gtx"); u.searchParams.set("sl", "en"); u.searchParams.set("tl", "it"); u.searchParams.set("dt", "t"); u.searchParams.set("q", testo);
+    const res = await fetch(u.toString()); if (res.ok) { const j = await res.json(), t = ((j && j[0]) || []).map((x) => (x && x[0]) || "").join("").trim(); if (t) return t; }
+  } catch {}
+  try {
+    const u = new URL("https://api.mymemory.translated.net/get"); u.searchParams.set("q", testo); u.searchParams.set("langpair", "en|it"); if (env.MYMEMORY_EMAIL) u.searchParams.set("de", env.MYMEMORY_EMAIL);
+    const res = await fetch(u.toString()), j = await res.json(), t = String((j.responseData || {}).translatedText || "").trim();
+    if (res.ok && t && !/MYMEMORY WARNING|QUERY LENGTH|INVALID/i.test(t) && !j.quotaFinished) return t;
+  } catch {}
+  return null;
+}
+// titoli e descrizioni: ogni testo si traduce una volta sola e resta salvato (al massimo 18 nuovi per richiesta, il resto alla prossima)
 async function traduciTitoli(env, righe) {
   let C = {}; if (dbOk(env)) C = ((await rigaForma(env, "_trad").catch(() => null)) || {}).m || {};
-  let nuovi = 0, cambiato = false, finita = false;
+  const lavori = [];
   for (const r of righe) {
-    const k = r.titolo.slice(0, 180);
-    if (C[k]) { r.titoloIt = C[k]; continue; }
-    if (finita || nuovi >= 10) continue; nuovi++;
-    try {
-      const u = new URL("https://api.mymemory.translated.net/get"); u.searchParams.set("q", k); u.searchParams.set("langpair", "en|it"); if (env.MYMEMORY_EMAIL) u.searchParams.set("de", env.MYMEMORY_EMAIL);
-      const res = await fetch(u.toString()), j = await res.json(), t = String((j.responseData || {}).translatedText || "").trim();
-      if (!res.ok || /MYMEMORY WARNING|QUERY LENGTH|INVALID/i.test(t) || j.quotaFinished || !t) { finita = true; continue; }
-      C[k] = t; r.titoloIt = t; cambiato = true;
-    } catch { finita = true; }
+    for (const [campo, dest, testo] of [["t", "titoloIt", r.titolo], ["d", "descIt", r.desc]]) {
+      if (!testo) continue; const k = (campo === "d" ? "d|" : "") + testo.slice(0, 180);
+      if (C[k]) r[dest] = C[k]; else lavori.push({ r, dest, k, testo: testo.slice(0, 400) });
+    }
   }
-  if (cambiato && dbOk(env)) { const chiavi = Object.keys(C); if (chiavi.length > 400) for (const x of chiavi.slice(0, chiavi.length - 400)) delete C[x]; await salvaRigaForma(env, "_trad", { m: C }).catch(() => {}); }
+  const batch = lavori.slice(0, 18); let cambiato = false;
+  await Promise.all(batch.map(async (w) => { const t = await traduciUno(env, w.testo); if (t) { C[w.k] = t; w.r[w.dest] = t; cambiato = true; } }));
+  if (cambiato && dbOk(env)) { const chiavi = Object.keys(C); if (chiavi.length > 600) for (const x of chiavi.slice(0, chiavi.length - 600)) delete C[x]; await salvaRigaForma(env, "_trad", { m: C }).catch(() => {}); }
   return righe;
 }
 async function apiDiag(env) {
