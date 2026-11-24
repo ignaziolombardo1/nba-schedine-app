@@ -395,3 +395,9 @@ export async function caricaAtleta(pid) {
   if (!nome) throw new Error("giocatore non trovato");
   return { nome, sq };
 }
+
+// cronaca azione per azione (ultime azioni dalla scheda partita di ESPN: campo "plays", struttura non verificata con dati reali)
+export async function caricaCronaca(eventId, ttl = 5) {
+  const d = await get(`${ESPN}/summary`, { event: eventId }, ttl), P = Array.isArray(d.plays) ? d.plays : [];
+  return P.slice(-25).reverse().map((q) => ({ t: String(q.text || q.shortDescription || "").slice(0, 160), per: (q.period || {}).number ?? null, ck: (q.clock || {}).displayValue || "", p: !!q.scoringPlay, c: q.homeScore ?? null, o: q.awayScore ?? null, v: q.scoreValue ?? null })).filter((q) => q.t);
+}

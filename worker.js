@@ -1,7 +1,7 @@
 import { info, nome, SQUADRE } from "./squadre.js";
 import { proiettaPartita, proiettaGiocatori, consigli, proposte, proposteQuota, valuta, phi, STD, frazioneGara, probLive, segnaliLive } from "./modello.js";
 import { aggiornaQuote, chiaveGara } from "./quote.js";
-import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaUltime, caricaEsitoPartita, caricaQuintetti, caricaAtleta, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni, caricaNews } from "./espn.js";
+import { romaYMD, caricaGiorno, caricaStatistiche, caricaInfortuni, caricaBoxscore, caricaCronaca, caricaUltime, caricaEsitoPartita, caricaQuintetti, caricaAtleta, testaATesta, caricaGamelog, dataUS, get, caricaClassifica, caricaCalendarioSquadra, caricaCalendario, caricaListaInfortuni, caricaNews } from "./espn.js";
 
 const arr = (k, v) => (typeof v === "number" && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
 const J = (o, ttl = 0) => new Response(JSON.stringify(o, arr), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": ttl ? `public, max-age=${ttl}` : "no-store", "access-control-allow-origin": "*" } });
@@ -417,12 +417,21 @@ async function cronAvvisi(env) {
   {
     const subs = ((await rigaForma(env, "_push").catch(() => null)) || { subs: [] }).subs.filter((x) => x.pref && ((x.pref.sq || []).length || (x.pref.pl || []).length || (x.pref.gm || []).length));
     const segue = (sb, p) => (sb.pref.gm || []).includes(String(p.id)) || (sb.pref.sq || []).includes(p.casa) || (sb.pref.sq || []).includes(p.trasf) || (sb.pref.pl || []).some((x) => x.sq === p.casa || x.sq === p.trasf);
-    oggi.i ||= {}; oggi.f ||= {};
+    oggi.i ||= {}; oggi.f ||= {}; let inf = null;
     for (const p of g.partite) {
       if (!subs.some((sb) => segue(sb, p))) continue;
       if (p.stato === "pre") { // promemoria 20-40 minuti prima dell'inizio e quintetti ufficiali, per le partite che segui
         const m = (Date.parse(p.iso) - ora) / 60000; oggi.p ||= {}; oggi.q ||= {};
         if (m >= 20 && m <= 40 && !oggi.p[p.id]) { await accodaPush(env, { cat: "pr", titolo: `⏰ Tra poco ${p.casa} - ${p.trasf}`, testo: `Inizia alle ${p.ora.slice(-5)}. Tocca per vedere stime e giocate.`, url: `/#/partita/${p.id}` }, (sb) => sb.pref && segue(sb, p)); oggi.p[p.id] = 1; fatto.push("promemoria " + p.id); }
+        if (m > 0 && m <= 240) { // infortuni: giocatore che segui fuori o in dubbio (una notifica per giocatore e stato)
+          oggi.n ||= {}; inf ||= await caricaInfortuni().catch(() => ({}));
+          for (const sb of subs.filter((x) => segue(x, p))) for (const x of (sb.pref.pl || []).filter((y) => y.sq === p.casa || y.sq === p.trasf)) {
+            const i = inf[String(x.nome || "").trim().toLowerCase()], k = x.pid + "|" + (i ? i.stato : "ok") + "|" + String(sb.endpoint).slice(-12);
+            if (!i || oggi.n[k]) continue;
+            await accodaPush(env, { cat: "pr", titolo: i.stato === "out" ? `⚠️ ${x.nome} è fuori` : `⚠️ ${x.nome} è in dubbio`, testo: `${p.casa} - ${p.trasf}${i.etichetta ? " · " + i.etichetta : ""}${i.dettaglio ? "\n" + i.dettaglio : ""}`.slice(0, 250), url: `/#/partita/${p.id}` }, (y) => y.endpoint === sb.endpoint);
+            oggi.n[k] = 1; fatto.push("infortunio " + x.nome);
+          }
+        }
         if (m > 0 && m <= 90 && !oggi.q[p.id]) { // quando ESPN pubblica i quintetti: una notifica per partita, con i giocatori che segui in evidenza
           const Q = await caricaQuintetti(p.id, 60).catch(() => null);
           if (Q && Q.pubblicato) {
@@ -744,6 +753,7 @@ export default {
       const dp = url.searchParams.get("d"), data = dp && /^\d{8}$/.test(dp) ? dp : null;
       if (p === "/api/diag") return J(await apiDiag(env));
       if (p === "/api/giorno") return J(await apiGiorno(env, ctx, off, data), 45);
+      if (p === "/api/cronaca") { const id = url.searchParams.get("id") || ""; if (!/^\d+$/.test(id)) return ERR("partita non valida", 400); return J({ azioni: await caricaCronaca(id, 5) }, 4); }
       if (p === "/api/tabellino") {
         const id = url.searchParams.get("id") || ""; if (!/^\d+$/.test(id)) return ERR("partita non valida", 400);
         const [box, es] = await Promise.all([caricaBoxscore(id, 600), caricaEsitoPartita(id, 600).catch(() => ({}))]);

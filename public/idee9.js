@@ -20,7 +20,7 @@ function lineeCombo(pl, k) {
 }
 
 function comboPartita(D, qMin) {
-  const res = [];
+  const res = [], fq = typeof fattoreQuota === "function" ? fattoreQuota().f : 1;
   for (const g of D.partite) {
     if (g.stato !== "pre" || !g.r || !g.giocatori || !g.giocatori.length) continue;
     const pw = g.r.pw, fav = pw >= 0.5 ? g.casa : g.trasf, pf = Math.max(pw, 1 - pw);
@@ -31,7 +31,7 @@ function comboPartita(D, qMin) {
         if (k === "reb" && !(pl.reb && pl.reb.v >= 7)) continue; if (k === "ast" && !(pl.ast && pl.ast.v >= 6)) continue;
         let best = null;
         for (const l of lineeCombo(pl, k)) {
-          const joint = Math.min(pf, l.p, pf * l.p * CORR_COMBO), q = 1 / joint * MARGINE_COMBO;
+          const joint = Math.min(pf, l.p, pf * l.p * CORR_COMBO), q = 1 / joint * MARGINE_COMBO * fq;
           if (q < qMin) continue; if (!best || joint > best.joint) best = { ...l, joint, q };
         }
         if (best) res.push({ g, fav, pf, pl, k, l: best });
@@ -58,7 +58,7 @@ async function vistaComboPartita() {
         <div class="riga rg" style="gap:8px"><span>${logo(c.fav, 22)} ${esc(nomeS)} vince</span><b style="color:${colProb(c.pf)}">${pct(c.pf)}</b></div>
         <div class="riga rg" style="gap:8px"><span>${esc(c.pl.nome)} over ${l.t} ${u}${l.bk ? ` <span class="s">(linea bookmaker)</span>` : ""}<br><span class="s">media ${virg(c.pl[c.k].media)} · stima partita ${virg(c.pl[c.k].v)}</span></span><b style="color:${colProb(l.p)}">${pct(l.p)}</b></div>
         <button class="btn" data-usa="${i}" style="margin:8px 0 0">Aggiungi alla mia schedina</button></div>`;
-      }).join("") + `<div class="cap">Probabilità unita = le due probabilità moltiplicate, con un piccolo aumento perché le due cose sono legate. La quota è una stima: scrivi quella vera del tuo sito nella schedina per vedere il valore.</div>` : `<div class="vuoto">Nessuna combo con questa quota minima. Abbassa la quota o aspetta che escano le partite di oggi.</div>`);
+      }).join("") + `<div class="cap">Probabilità unita = le due probabilità moltiplicate, con un piccolo aumento perché le due cose sono legate. La quota è una stima${typeof fattoreQuota === "function" && fattoreQuota().n >= 3 ? `, corretta sulle quote del tuo sito (×${fattoreQuota().f.toFixed(2)})` : ": scrivi la quota vera del tuo sito nelle schedine che salvi, così l'app impara quanto paga"}.</div>` : `<div class="vuoto">Nessuna combo con questa quota minima. Abbassa la quota o aspetta che escano le partite di oggi.</div>`);
     APP.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => { S.q = +b.dataset.q; ls.set("comboSet", S); disegna(); });
     APP.querySelectorAll("[data-usa]").forEach((b) => b.onclick = () => {
       const c = r[+b.dataset.usa], w = probCustom(c.g, { g: c.g.id, k: "win", sq: c.fav }), p = probCustom(c.g, { g: c.g.id, k: c.k, dir: "over", pid: c.pl.pid, sq: null, soglia: c.l.t });

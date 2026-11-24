@@ -1,5 +1,5 @@
-const V = "nba-v127";
-const SHELL = ["/", "/style.css", "/core.js", "/mia.js", "/partite.js", "/conto.js", "/statistiche.js", "/strumenti.js", "/giocatore.js", "/live.js", "/esplora.js", "/idee1.js", "/idee2.js", "/idee3.js", "/idee4.js", "/idee5.js", "/idee6.js", "/idee7.js", "/idee8.js", "/idee9.js", "/idee10.js", "/app.js", "/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png"];
+const V = "nba-v128";
+const SHELL = ["/", "/style.css", "/core.js", "/mia.js", "/partite.js", "/conto.js", "/statistiche.js", "/strumenti.js", "/giocatore.js", "/live.js", "/esplora.js", "/idee1.js", "/idee2.js", "/idee3.js", "/idee4.js", "/idee5.js", "/idee6.js", "/idee7.js", "/idee8.js", "/idee9.js", "/idee10.js", "/idee11.js", "/app.js", "/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== V).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", (e) => {
