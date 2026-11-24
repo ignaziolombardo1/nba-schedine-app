@@ -56,7 +56,7 @@ async function vistaValore() {
 window.RIDEE.push([/^\/valore/, vistaValore]);
 
 // ---- 3. Chiedi al modello: domande semplici in italiano sulla serata
-const ESEMPI = ["Chi fa 25 punti stasera?", "Chi prende 10 rimbalzi?", "Migliori giocate", "Partite con più punti", "Chi vince?", "Giocate dei Lakers"];
+const ESEMPI = ["Chi fa 25 punti stasera?", "Chi prende 10 rimbalzi?", "Migliori giocate", "Partite con più punti", "Chi vince?", "Giocate dei Lakers", "Doppia doppia stasera", "Chi è fuori?", "Che partite ci sono?", "Combo con i Lakers", "Partite più equilibrate", "Chi è in diretta?"];
 function rispondi(D, q) {
   const t = q.toLowerCase(), pre = (D.partite || []).filter((p) => p.stato === "pre"), B = (ab) => T(D, ab).b;
   const sqCit = Object.keys(D.squadre || {}).filter((ab) => t.includes(ab.toLowerCase() + " ") || (" " + t + " ").includes(" " + ab.toLowerCase() + " ") || t.includes(String(B(ab)).toLowerCase()));
@@ -84,7 +84,7 @@ function rispondi(D, q) {
 async function vistaChiedi() {
   const top = topBar() + segEsplora("q"); APP.innerHTML = top + skel();
   let D; try { D = await dati(); } catch (e) { APP.innerHTML = top + errBox(e); return; }
-  APP.innerHTML = top + `<div class="cap" style="margin-top:0">Fai una domanda sulla serata: risponde con i numeri del modello, senza inventare nulla. Capisce richieste su punti, rimbalzi, assist, favorite, totali, singole squadre e giocatori.</div><div class="card"><input class="linea" id="chq" placeholder="Es. chi fa 25 punti stasera?" style="margin:0" enterkeyhint="search"></div><div class="tabs">${ESEMPI.map((e) => `<button class="chipbtn" data-esq="${esc(e)}">${esc(e)}</button>`).join("")}</div><div id="chr"></div>`;
+  APP.innerHTML = top + `<div class="cap" style="margin-top:0">Fai una domanda sulla serata: risponde con i numeri del modello, senza inventare nulla. Capisce richieste su punti, rimbalzi, assist, doppie doppie, infortuni, orari, live, combo, favorite, totali, singole squadre e giocatori.</div><div class="card"><input class="linea" id="chq" placeholder="Es. chi fa 25 punti stasera?" style="margin:0" enterkeyhint="search"></div><div class="tabs">${ESEMPI.map((e) => `<button class="chipbtn" data-esq="${esc(e)}">${esc(e)}</button>`).join("")}</div><div id="chr"></div>`;
   const vai = () => {
     const q = $("#chq").value.trim(); if (!q) return; const r = rispondi(D, q);
     $("#chr").innerHTML = `<div class="sub" style="margin-top:12px">${esc(r.t)}</div>` + r.l.map((o) => `<a class="card riga" href="${o.href}" style="padding:10px 12px;color:inherit;gap:10px"><div style="min-width:0"><b>${esc(o.a)}</b><div class="s">${o.b}</div></div><b style="color:${o.c};white-space:nowrap">${esc(o.v)}</b></a>`).join("");
