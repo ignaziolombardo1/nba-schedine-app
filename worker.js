@@ -849,7 +849,7 @@ export default {
       }
       if (p === "/api/giocatore") {
         const pid = url.searchParams.get("pid") || ""; if (!/^\d+$/.test(pid)) return ERR("giocatore non valido", 400);
-        const [st, gl, inf] = await Promise.all([caricaStatistiche(), caricaGamelog(pid, 10).catch(() => null), caricaInfortuni().catch(() => ({}))]);
+        const [st, gl, inf] = await Promise.all([caricaStatistiche(), caricaGamelog(pid, 10, true).catch(() => null), caricaInfortuni().catch(() => ({}))]);
         let x = st.players.find((q) => q.pid === pid), senza = false;
         if (!x) { // fuori dall'elenco (panchinari): nome e squadra dalla scheda ESPN, medie dalle ultime partite
           const at = await caricaAtleta(pid).catch(() => null); if (!at) return ERR("giocatore non trovato", 404);
@@ -857,12 +857,12 @@ export default {
           x = { pid, nome: at.nome, sq: at.sq || "", min: gl ? m(gl.min) : 0, pts: gl ? m(gl.pts) : 0, reb: gl ? m(gl.reb) : 0, ast: gl ? m(gl.ast) : 0 }; senza = true;
         }
         const i = inf[x.nome.trim().toLowerCase()];
-        return J({ pid, nome: x.nome, sq: x.sq, min: x.min, pts: x.pts, reb: x.reb, ast: x.ast, ult: gl ? { pts: [...gl.pts].reverse(), reb: [...gl.reb].reverse(), ast: [...gl.ast].reverse(), min: [...gl.min].reverse() } : null, inf: i ? { stato: i.stato, e: i.etichetta, d: i.dettaglio } : null, par: gl && gl.par ? gl.par.map((q) => ({ ...q, ai: q.a ? info(q.a) : null })) : [], senzaStat: senza, squadre: { [x.sq]: info(x.sq) } }, 600);
+        return J({ pid, nome: x.nome, sq: x.sq, min: x.min, pts: x.pts, reb: x.reb, ast: x.ast, ult: gl ? { pts: [...gl.pts].reverse(), reb: [...gl.reb].reverse(), ast: [...gl.ast].reverse(), min: [...gl.min].reverse() } : null, inf: i ? { stato: i.stato, e: i.etichetta, d: i.dettaglio } : null, log: gl && gl.log ? gl.log : [], par: gl && gl.par ? gl.par.map((q) => ({ ...q, ai: q.a ? info(q.a) : null })) : [], senzaStat: senza, squadre: { [x.sq]: info(x.sq) } }, 600);
       }
       if (p === "/api/cerca") { const q = (url.searchParams.get("q") || "").trim().toLowerCase(); if (q.length < 2) return J({ giocatori: [] }, 60); const st = await caricaStatistiche(); return J({ giocatori: st.players.filter((x) => x.nome.toLowerCase().includes(q)).sort((a, b) => b.pts - a.pts).slice(0, 15).map((x) => ({ pid: x.pid, nome: x.nome, sq: x.sq, pts: x.pts, reb: x.reb, ast: x.ast })) }, 600); }
       if (p === "/api/quintetti") { const id = url.searchParams.get("id") || ""; if (!/^\d+$/.test(id)) return ERR("partita non valida", 400); const Q = await caricaQuintetti(id, 60).catch(() => null); return J({ id, pubblicato: !!(Q && Q.pubblicato), titolari: Q ? Q.titolari : {} }, 60); }
       if (p === "/api/h2h") { const x = (url.searchParams.get("a") || "").toUpperCase(), y = (url.searchParams.get("b") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(x) || !/^[A-Z]{2,4}$/.test(y)) return ERR("sigla non valida", 400); return J({ a: x, b: y, partite: await testaATesta(x, y) }, 1800); }
-      if (p === "/api/ultime") { const s = (url.searchParams.get("s") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(s)) return ERR("sigla non valida", 400); return J({ s, ultime: await caricaUltime(s) }, 600); }
+      if (p === "/api/ultime") { const s = (url.searchParams.get("s") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(s)) return ERR("sigla non valida", 400); const n = Math.min(30, Math.max(5, parseInt(url.searchParams.get("n") || "5", 10) || 5)); return J({ s, ultime: await caricaUltime(s, n) }, 600); }
       return ERR("non trovato", 404);
     } catch (e) { return ERR(String(e.message || e)); }
   },

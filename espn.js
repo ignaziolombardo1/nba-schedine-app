@@ -257,11 +257,12 @@ export async function caricaForma(pid, n = 10) {
 }
 
 // Ultime partite di un giocatore (gamelog ESPN). Restituisce {pts,reb,ast,min} dalla più recente, o null se il formato non è riconosciuto.
-export async function caricaGamelog(pid, n = 10) {
+export async function caricaGamelog(pid, n = 10, completo = false) {
   const d = await get(`https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${pid}/gamelog`, {}, 3600);
   const nomi = (d.names || d.labels || []).map((x) => String(x).toLowerCase());
   const trova = (...alt) => nomi.findIndex((x) => alt.includes(x));
   const iMin = trova("minutes", "min"), iPts = trova("points", "pts"), iReb = trova("totalrebounds", "rebounds", "reb"), iAst = trova("assists", "ast");
+  const iFg = trova("fieldgoalsmade-fieldgoalsattempted"), iTre = trova("threepointfieldgoalsmade-threepointfieldgoalsattempted"), iStl = trova("steals", "stl"), iBlk = trova("blocks", "blk"), iTov = trova("turnovers", "to"), iFl = trova("personalfouls", "pf");
   if (iMin < 0 || iPts < 0 || iReb < 0 || iAst < 0) throw new Error("gamelog: colonne non riconosciute (" + nomi.slice(0, 14).join(",") + ")");
   const date = {}; const ev = d.events || {};
   for (const [id, e] of Object.entries(ev)) date[id] = e.gameDate || e.date || "";
@@ -273,13 +274,16 @@ export async function caricaGamelog(pid, n = 10) {
       const v = (i) => { const x = parseFloat((e.stats || [])[i]); return Number.isFinite(x) ? x : null; };
       const mn = v(iMin); if (!mn || mn <= 0) continue;
       const inf = ev[e.eventId] || {}, opp = inf.opponent || {};
-      righe.push({ data: date[e.eventId] || "", pts: v(iPts), reb: v(iReb), ast: v(iAst), min: mn, avv: opp.abbreviation || opp.displayName || "", fuori: String(inf.atVs || "") === "@", ris: String(inf.gameResult || ""), sc: String(inf.score || "") });
+      const ma = (i) => { const q = String((e.stats || [])[i] ?? "").split("-"); const x = parseFloat(q[0]), y = parseFloat(q[1]); return [Number.isFinite(x) ? x : null, Number.isFinite(y) ? y : null]; };
+      const [fg, fga] = iFg >= 0 ? ma(iFg) : [null, null], [tp, tpa] = iTre >= 0 ? ma(iTre) : [null, null];
+      righe.push({ data: date[e.eventId] || "", fg, fga, tp, tpa, st: iStl >= 0 ? v(iStl) : null, bl: iBlk >= 0 ? v(iBlk) : null, tv: iTov >= 0 ? v(iTov) : null, fl: iFl >= 0 ? v(iFl) : null, pts: v(iPts), reb: v(iReb), ast: v(iAst), min: mn, avv: opp.abbreviation || opp.displayName || "", fuori: String(inf.atVs || "") === "@", ris: String(inf.gameResult || ""), sc: String(inf.score || "") });
     }
   }
   if (!righe.length) throw new Error("gamelog: nessuna partita trovata");
   righe.sort((a, b) => (a.data < b.data ? 1 : -1));
   const u = righe.slice(0, n);
-  return { pts: u.map((x) => x.pts ?? 0), reb: u.map((x) => x.reb ?? 0), ast: u.map((x) => x.ast ?? 0), min: u.map((x) => x.min), par: u.slice(0, 5).map((x) => ({ d: String(x.data).slice(0, 10), a: x.avv, f: x.fuori, r: x.ris, sc: x.sc, pt: x.pts, rb: x.reb, as: x.ast, mn: x.min })) };
+  const log = completo ? righe.slice(0, 25).map((x) => ({ d: String(x.data).slice(0, 10), a: x.avv, f: x.fuori, r: x.ris, sc: x.sc, mn: x.min, pt: x.pts, rb: x.reb, as: x.ast, tp: x.tp, tpa: x.tpa, fg: x.fg, fga: x.fga, st: x.st, bl: x.bl, tv: x.tv, fl: x.fl })) : undefined;
+  return { log, pts: u.map((x) => x.pts ?? 0), reb: u.map((x) => x.reb ?? 0), ast: u.map((x) => x.ast ?? 0), min: u.map((x) => x.min), par: u.slice(0, 5).map((x) => ({ d: String(x.data).slice(0, 10), a: x.avv, f: x.fuori, r: x.ris, sc: x.sc, pt: x.pts, rb: x.reb, as: x.ast, mn: x.min })) };
 }
 
 // Scontri diretti tra due squadre (stagione in corso e precedente), dal punto di vista di "a"
