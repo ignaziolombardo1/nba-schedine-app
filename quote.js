@@ -101,7 +101,7 @@ export async function aggiornaQuote(env, stato, partite, forza = false) {
   const oggi = new Date(adesso + 3600e3).toISOString().slice(0, 10), tetto = parseInt(env.ODDS_BUDGET_DAY) || 16; // crediti massimi al giorno: 14 x 30 giorni = 420 su 500
   const speso0 = stato?.giornoSpeso === oggi ? stato.speso || 0 : 0;
   const nreg = Math.max(1, regioni.split(",").length);
-  const nuovo = { giornoSpeso: oggi, speso: speso0, t: stato?.t || null, tProps: stato?.tProps || {}, giochi: stato?.giochi || {}, props: stato?.props || {}, crediti: stato?.crediti ?? null, errore: null, chiamate: 0 };
+  const nuovo = { giornoSpeso: oggi, speso: speso0, t: stato?.t || null, tProps: stato?.tProps || {}, giochi: stato?.giochi || {}, storia: stato?.storia || {}, props: stato?.props || {}, crediti: stato?.crediti ?? null, errore: null, chiamate: 0 };
   const restanti = nuovo.crediti;
   if (restanti != null && restanti < 15) { nuovo.errore = "crediti quasi finiti: aggiornamento sospeso"; return nuovo; }
   const lenti = restanti != null && restanti < 100 ? 4 : restanti != null && restanti < 300 ? 2 : 1; // meno aggiornamenti quando i crediti calano
@@ -115,7 +115,11 @@ export async function aggiornaQuote(env, stato, partite, forza = false) {
     if (serve && puoSpendere(costoGiochi)) {
       nuovo.speso += costoGiochi;
       const r = await chiedi("/odds", { regions: regioni, markets: "totals,spreads", oddsFormat: "decimal" }, key);
-      nuovo.giochi = leggiGiochi(r.json); nuovo.t = new Date().toISOString(); nuovo.crediti = r.restanti; nuovo.chiamate++;
+      nuovo.giochi = leggiGiochi(r.json); nuovo.t = new Date().toISOString();
+      // storico delle linee di partita (totale e spread), per vedere come si muove il mercato: al massimo 14 letture per partita
+      nuovo.storia = stato?.storia ? { ...stato.storia } : {};
+      for (const [k, g] of Object.entries(nuovo.giochi)) { const s = (nuovo.storia[k] ||= []), t = g.tot ? g.tot.linea : null, sp = g.spr ? g.spr.linea : null, ult = s[s.length - 1]; if (!ult || ult.tot !== t || ult.sp !== sp) { s.push({ t: nuovo.t, tot: t, sp, pO: g.tot ? g.tot.pOver : null }); if (s.length > 14) s.shift(); } }
+      for (const k of Object.keys(nuovo.storia)) if (!nuovo.giochi[k]) delete nuovo.storia[k]; nuovo.crediti = r.restanti; nuovo.chiamate++;
     }
     // quote dei giocatori: una volta per partita, nelle 4 ore prima dell'inizio (e di nuovo se più vecchie di 3 ore)
     const daFare = prossime.filter((p) => Date.parse(p.iso) - adesso < 4 * 3600e3 && (!nuovo.tProps[chiaveGara(p.casa, p.trasf)] || adesso - Date.parse(nuovo.tProps[chiaveGara(p.casa, p.trasf)]) > 3 * 3600e3 * lenti));

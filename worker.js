@@ -432,6 +432,17 @@ async function cronAvvisi(env) {
             oggi.n[k] = 1; fatto.push("infortunio " + x.nome);
           }
         }
+        if (m > 0 && m <= 360) { // la linea del bookmaker si è mossa molto dalla prima lettura (una notifica per partita e per movimento)
+          oggi.l ||= {}; const fq = (await leggiForma(env).catch(() => ({}))).quote, st = fq && fq.storia && fq.storia[chiaveGara(p.casa, p.trasf)];
+          if (st && st.length >= 2) {
+            const a = st[0], z = st[st.length - 1], dt = a.tot != null && z.tot != null ? z.tot - a.tot : 0, ds = a.sp != null && z.sp != null ? z.sp - a.sp : 0, sig = `${dt >= 3 || dt <= -3 ? Math.round(z.tot) : ""}|${Math.abs(ds) >= 2.5 ? z.sp : ""}`;
+            if ((Math.abs(dt) >= 3 || Math.abs(ds) >= 2.5) && oggi.l[p.id] !== sig) {
+              const righe = []; if (Math.abs(dt) >= 3) righe.push(`Totale ${a.tot} → ${z.tot} (${dt > 0 ? "+" : ""}${dt.toFixed(1)})`); if (Math.abs(ds) >= 2.5) righe.push(`Spread ${a.sp} → ${z.sp}`);
+              await accodaPush(env, { cat: "pr", titolo: `📈 La linea si muove: ${p.casa} - ${p.trasf}`, testo: righe.join("\n") + "\nIl mercato ha cambiato idea: ricontrolla le tue giocate.", url: `/#/partita/${p.id}` }, (sb) => sb.pref && segue(sb, p));
+              oggi.l[p.id] = sig; fatto.push("linea " + p.id);
+            }
+          }
+        }
         if (m > 0 && m <= 90 && !oggi.q[p.id]) { // quando ESPN pubblica i quintetti: una notifica per partita, con i giocatori che segui in evidenza
           const Q = await caricaQuintetti(p.id, 60).catch(() => null);
           if (Q && Q.pubblicato) {
@@ -541,6 +552,15 @@ async function apiDiag(env) {
     if (min > 20) throw new Error(`ultimo giro ${min} minuti fa: il cron non gira ogni 5 minuti (ultimo esito ${c.esito})`);
     return `ultimo giro ${min} minuti fa · ${c.esito}`;
   });
+  // Fonti extra (solo sonde: l'app non le usa ancora). Servono a sapere cosa è raggiungibile da Cloudflare prima di costruirci sopra.
+  const sonda = async (url, tipo) => { const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0", accept: "*/*", referer: "https://www.nba.com/" }, signal: AbortSignal.timeout(7000) }); if (!r.ok) throw new Error(`HTTP ${r.status} da ${new URL(url).host}`); return tipo === "json" ? r.json() : r.text(); };
+  let nbaId = null;
+  await prova("Fonte extra: NBA.com tabellone (cdn.nba.com)", async () => { const d = await sonda("https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json", "json"), g = (d.scoreboard || {}).games || []; if (!g.length) throw new Error("risposta senza partite (può essere un giorno senza gare)"); nbaId = (g.find((x) => x.gameStatus >= 2) || g[0]).gameId; return `${g.length} partite, campi per partita: ${Object.keys(g[0]).slice(0, 12).join(", ")}`; });
+  await prova("Fonte extra: NBA.com tabellino con arbitri", async () => { if (!nbaId) throw new Error("serve la sonda del tabellone"); const d = await sonda(`https://cdn.nba.com/static/json/liveData/boxscore/boxscore_${nbaId}.json`, "json"), g = d.game || {}; return `arbitri: ${(g.officials || []).map((o) => o.name).join(", ") || "non ancora assegnati"} · campi: ${Object.keys(g).slice(0, 10).join(", ")}`; });
+  await prova("Fonte extra: NBA.com azioni con coordinate dei tiri", async () => { if (!nbaId) throw new Error("serve la sonda del tabellone"); const d = await sonda(`https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_${nbaId}.json`, "json"), a = (d.game || {}).actions || []; const t = a.find((x) => x.x != null && x.y != null); if (!a.length) throw new Error("nessuna azione (partita non iniziata)"); return `${a.length} azioni · coordinate dei tiri: ${t ? "sì (x,y,area " + (t.area || "-") + ")" : "no"}`; });
+  await prova("Fonte extra: NBA.com quote (cdn.nba.com/odds)", async () => { const d = await sonda("https://cdn.nba.com/static/json/liveData/odds/odds_todaysGames.json", "json"); return `${(d.games || []).length} partite con quote`; });
+  await prova("Fonte extra: arbitri designati (official.nba.com)", async () => { const t = await sonda("https://official.nba.com/referee-assignments/", "testo"); if (t.length < 2000) throw new Error("pagina troppo corta: " + t.length + " caratteri"); return `pagina letta (${t.length} caratteri), contiene la parola «Crew Chief»: ${/crew chief/i.test(t) ? "sì" : "no"}`; });
+  await prova("Fonte extra: report infortuni ufficiale (official.nba.com)", async () => { const t = await sonda("https://official.nba.com/nba-injury-report-2025-26-season/", "testo"); const pdf = (t.match(/https?:[^"'\s]+Injury-Report[^"'\s]+\.pdf/gi) || []); if (!pdf.length) throw new Error("pagina letta (" + t.length + " caratteri) ma nessun link ai PDF"); return `${pdf.length} PDF, ultimo: ${pdf[pdf.length - 1].slice(-40)}`; });
   await prova("Pagine con dati vuoti", async () => {
     const v = [], c = await caricaClassifica().catch(() => null), l = await caricaListaInfortuni().catch(() => null);
     if (!c || !c.Est.length || !c.Ovest.length) v.push("classifica");
@@ -774,6 +794,7 @@ export default {
       }
       if (p === "/api/esiti") return J(await apiEsiti(off, data), 120);
       if (p === "/api/storico") return J(await apiStorico(env));
+      if (p === "/api/linee") { const k = chiaveGara((url.searchParams.get("c") || "").toUpperCase(), (url.searchParams.get("t") || "").toUpperCase()), q = dbOk(env) ? (await leggiForma(env)).quote : null; return J({ attivo: !!(q && q.giochi), storia: (q && q.storia && q.storia[k]) || [] }, 120); }
       if (p === "/api/aggiorna-quote") return J(await cronQuote(env, true));
       if (p === "/api/aggiorna-forma") { try { await aggiornaForma(env); const f = await leggiForma(env); return J({ ok: true, giocatori_con_forma: f.n, stato: f.stato || null }); } catch (e) { return J({ errore: e.message }); } }
       if (p === "/api/avviso-prova") { if (!env.TELEGRAM_TOKEN || url.searchParams.get("k") !== String(env.TELEGRAM_CHAT_ID)) return ERR("non autorizzato", 403); await telegram(env, "✅ NBA Schedine è collegata a Telegram: da ora ricevi qui il riepilogo prima delle partite e i risultati a fine giornata."); return J({ ok: true }); }

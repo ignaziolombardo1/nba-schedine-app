@@ -70,3 +70,53 @@ async function confrontoSquadre(D, p) {
   ${riga("Dall'ultima partita", lab(rA), lab(rB), rA != null && rB != null && rA !== rB ? (rA > rB ? 1 : 2) : 0)}</div>
   <div class="card" style="padding:8px 12px"><div class="s">Punti totali attesi</div><div class="riga rg"><span>Dai dati recenti (attacco di una contro difesa dell'altra)</span><b>${f1(stimaRec)}</b></div><div class="riga rg"><span>Stima del modello</span><b>${f1(mod)}</b></div>${mk ? `<div class="riga rg"><span>Linea del bookmaker</span><b>${mk}</b></div>` : ""}<div class="cap" style="margin:6px 0 0">${Math.abs(stimaRec - mod) >= 6 ? (stimaRec > mod ? "I dati recenti dicono più punti del modello: occhio agli over." : "I dati recenti dicono meno punti del modello: occhio agli under.") : "Dati recenti e modello vanno nella stessa direzione."} Il verde indica chi sta meglio in quella voce.</div></div>`;
 }
+
+// ---- #/verifica: dove sbaglia il modello (per fascia di probabilità, tipo, squadra, giocatore, andamento nel tempo)
+function gruppiVerifica(R, chiave, minN) {
+  const m = new Map();
+  for (const r of R) { const k = chiave(r); if (!k) continue; const c = m.get(k) || { k, n: 0, ok: 0, pr: 0 }; c.n++; c.ok += r.esito; c.pr += r.prob; m.set(k, c); }
+  return [...m.values()].filter((c) => c.n >= minN).map((c) => ({ ...c, reale: c.ok / c.n, prev: c.pr / c.n, d: c.ok / c.n - c.pr / c.n }));
+}
+function rigaVer(c, nome) {
+  const d = Math.round(c.d * 100), col = Math.abs(d) < 5 ? MU : d > 0 ? GR : RD, w = Math.min(100, Math.abs(d) * 2.5);
+  return `<div class="riga rg" style="gap:8px"><div style="min-width:0;flex:1.3"><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nome)}</div><div class="s">${c.n} giocate · previsto ${Math.round(c.prev * 100)}% · centrato ${Math.round(c.reale * 100)}%</div></div><div style="flex:1;display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#232836;border-radius:3px;position:relative"><i style="position:absolute;top:0;height:6px;border-radius:3px;background:${col};${d >= 0 ? "left:50%" : "right:50%"};width:${w / 2}%"></i></div><b style="color:${col};min-width:42px;text-align:right">${d > 0 ? "+" : ""}${d}%</b></div></div>`;
+}
+function vistaVerifica() {
+  APP.innerHTML = topBar() + `<h2>Verifica del modello</h2><div class="skel" style="height:140px"></div>`;
+  api("/api/storico", 0).then((S) => {
+    const R = (S.righe || []).filter((r) => (r.esito === 0 || r.esito === 1) && r.prob > 0 && r.prob < 1);
+    if (R.length < 10) { APP.innerHTML = topBar() + `<h2>Verifica del modello</h2><div class="vuoto">Servono almeno 10 consigli chiusi nello Storico: finora ${R.length}. Appena le partite finiscono, qui vedrai dove il modello sbaglia.</div>`; return; }
+    const tot = R.reduce((a, r) => a + r.esito, 0) / R.length, prev = R.reduce((a, r) => a + r.prob, 0) / R.length, brier = R.reduce((a, r) => a + (r.prob - r.esito) ** 2, 0) / R.length;
+    const frase = Math.abs(tot - prev) < 0.03 ? "Il modello è ben tarato: prevede quanto poi accade." : tot < prev ? `Il modello è troppo ottimista di circa ${Math.round((prev - tot) * 100)} punti.` : `Il modello è prudente: centra ${Math.round((tot - prev) * 100)} punti più di quanto prevede.`;
+    const fasce = [[0, 0.6, "Sotto il 60%"], [0.6, 0.7, "60-70%"], [0.7, 0.8, "70-80%"], [0.8, 0.9, "80-90%"], [0.9, 1.01, "Sopra il 90%"]];
+    const perFascia = gruppiVerifica(R, (r) => { const f = fasce.find((x) => r.prob >= x[0] && r.prob < x[1]); return f && f[2]; }, 3).sort((a, b) => fasce.findIndex((x) => x[2] === a.k) - fasce.findIndex((x) => x[2] === b.k));
+    const perTipo = gruppiVerifica(R, (r) => r.tipo, 5).sort((a, b) => a.d - b.d);
+    const perSq = gruppiVerifica(R, (r) => r.squadra && r.squadra.length <= 4 && /^[A-Z]{2,4}$/.test(r.squadra) ? r.squadra : null, 5).sort((a, b) => a.d - b.d);
+    const perGio = gruppiVerifica(R.filter((r) => ["Punti", "Rimbalzi", "Assist"].includes(r.tipo)), (r) => { const m = /^(.+?)\s+(?:\d|oltre|over|under|meno|più)/i.exec(r.testo || ""); return m ? m[1].trim() : null; }, 4).sort((a, b) => a.d - b.d);
+    const perOver = gruppiVerifica(R, (r) => /under|meno di/i.test(r.testo || "") ? "Under" : /over|oltre|almeno|\+/i.test(r.testo || "") ? "Over" : null, 5);
+    const gg = [...new Set(R.map((r) => r.data))].sort(), sett = gruppiVerifica(R, (r) => { const i = gg.indexOf(r.data); return "Settimana " + (Math.floor((gg.length - 1 - i) / 7) + 1); }, 5);
+    const lista = (t, l, nota) => l.length ? `<h2>${t}</h2><div class="card" style="padding:4px 12px">${l.map((c) => rigaVer(c, c.k)).join("")}</div>${nota ? `<div class="cap">${nota}</div>` : ""}` : "";
+    const pe = (l, v) => l.filter((c) => (v < 0 ? c.d < -0.08 : c.d > 0.08)).slice(0, 3);
+    let h = topBar() + `<h2>Verifica del modello</h2><div class="card"><div style="font-size:16px;font-weight:600">${esc(frase)}</div><div class="s" style="margin-top:4px">${R.length} consigli chiusi · centrati ${Math.round(tot * 100)}% · previsti ${Math.round(prev * 100)}% · errore di Brier ${brier.toFixed(3)} (più basso è meglio, 0,25 equivale a tirare a indovinare)</div></div>`;
+    const guai = [...pe(perTipo, -1).map((c) => "tipo " + c.k), ...pe(perSq, -1).map((c) => "squadra " + c.k), ...pe(perGio, -1).map((c) => c.k)];
+    const bene = [...pe(perTipo, 1).map((c) => "tipo " + c.k), ...pe(perSq, 1).map((c) => "squadra " + c.k), ...pe(perGio, 1).map((c) => c.k)];
+    if (guai.length) h += `<div class="card"><div class="s">Dove è troppo ottimista</div><div>${guai.map(esc).join(", ")}</div></div>`;
+    if (bene.length) h += `<div class="card"><div class="s">Dove è troppo prudente</div><div>${bene.map(esc).join(", ")}</div></div>`;
+    h += lista("Per fascia di probabilità", perFascia, "Barra verde = centra più del previsto, rossa = meno. In una fascia ben tarata la barra è quasi vuota.");
+    h += lista("Per tipo di giocata", perTipo) + lista("Over contro Under", perOver) + lista("Per squadra", perSq) + lista("Per giocatore", perGio, "Solo giocatori con almeno 4 giocate chiuse. La taratura per giocatore corregge già queste differenze nelle prossime proposte.") + lista("Nel tempo", sett.sort((a, b) => parseInt(a.k.split(" ")[1]) - parseInt(b.k.split(" ")[1])));
+    h += `<div class="cap">Il campione cresce con lo Storico: con poche giocate le differenze piccole sono rumore, non un difetto del modello.</div>`;
+    APP.innerHTML = h;
+  }).catch((e) => { APP.innerHTML = topBar() + errBox(e); });
+}
+window.RIDEE.push([/^\/verifica/, vistaVerifica]);
+
+// ---- come si è mossa la linea del bookmaker (totale e spread) dalla prima lettura del server
+async function storiaLinee(p) {
+  const el = document.getElementById("lin14"); if (!el) return;
+  let R; try { R = await api(`/api/linee?c=${p.casa}&t=${p.trasf}`, 120000); } catch { return; }
+  const s = R.storia || []; if (!R.attivo || s.length < 2) { el.innerHTML = R.attivo ? `<div class="cap">Linee del bookmaker: per ora una sola lettura, il movimento comparirà alle prossime.</div>` : ""; return; }
+  const a = s[0], z = s[s.length - 1], d = (x, y) => (x == null || y == null ? null : y - x), dt = d(a.tot, z.tot), ds = d(a.sp, z.sp);
+  const col = (v, soglia) => (v == null || Math.abs(v) < soglia ? MU : OR), fm = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + v.toFixed(1).replace(".", ","));
+  const ora = (t) => new Date(t).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
+  el.innerHTML = `<div class="card"><div class="s">Come si è mossa la linea</div><div class="riga rg"><span>Totale</span><span><b>${a.tot ?? "–"} → ${z.tot ?? "–"}</b> <b style="color:${col(dt, 2)}">${fm(dt)}</b></span></div><div class="riga rg"><span>Spread (casa)</span><span><b>${a.sp ?? "–"} → ${z.sp ?? "–"}</b> <b style="color:${col(ds, 2)}">${fm(ds)}</b></span></div><div class="s" style="margin-top:6px">${s.map((x) => `${ora(x.t)}: ${x.tot ?? "–"} / ${x.sp ?? "–"}`).join(" · ")}</div>${Math.abs(dt || 0) >= 3 ? `<div class="cap" style="margin:6px 0 0">${dt > 0 ? "Il mercato prevede più punti di prima: gli over valgono di più, gli under meno." : "Il mercato prevede meno punti di prima: gli under valgono di più, gli over meno."}</div>` : ""}</div>`;
+}
