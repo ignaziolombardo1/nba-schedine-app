@@ -136,12 +136,13 @@ function confrontoMia(L, p, D) {
   return t;
 }
 function testoSchedina(s) { return `${s.nome} (${s.legs.length} giocate, probabilità unita ${pct(s.prob)})\n` + s.legs.map((l) => `• ${l.testo} (${l.partita}) ${pct(l.prob)}`).join("\n"); }
-function cardSchedina(s) {
+function cardSchedina(s, i) {
   const [col, ic] = TONI[s.tono] || [OR, "ti-ticket"];
-  return `<div class="card sch" style="border-top:3px solid ${col};padding:12px 14px"><div class="riga" style="align-items:center"><div><div class="sn"><i class="ti ${ic}" style="color:${col}"></i> ${esc(s.nome)}</div><div class="s">${esc(s.sotto)}</div></div><div style="text-align:right"><div class="sp" style="color:${col}">${pct(s.prob)}</div><div class="s">quota ${s.quotaEqua.toFixed(2)}</div></div></div>
-  <div style="margin:8px 0 4px">${s.legs.map((l) => `<div class="leg" style="gap:8px;padding:4px 0">${l.pid ? foto(l.pid, 26) : l.squadra ? logo(l.squadra, 24) : `<span class="ph" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:${OR}"></i></span>`}<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13.5px">${esc(l.testo)}</div><div class="s" style="font-size:11px">${esc(l.partita)} · ${esc(String(l.ora).slice(-5))}</div></div><b style="color:${colProb(l.prob)}">${pct(l.prob)}</b></div>`).join("")}</div>
+  const legs = s.legs.map((l) => `<div class="leg" style="gap:8px;padding:4px 0">${l.pid ? foto(l.pid, 26) : l.squadra ? logo(l.squadra, 24) : `<span class="ph" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:${OR}"></i></span>`}<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13.5px">${esc(l.testo)}</div><div class="s" style="font-size:11px">${esc(l.partita)} · ${esc(String(l.ora).slice(-5))}</div></div><b style="color:${colProb(l.prob)}">${pct(l.prob)}</b></div>`).join("");
+  return `<details class="card sch sch3" style="border-left:4px solid ${col}"${i === 0 ? " open" : ""}><summary><span class="sp3" style="color:${col}">${pct(s.prob)}</span><span class="sm3"><b><i class="ti ${ic}" style="color:${col}"></i> ${esc(s.nome)}</b><span class="s">${s.legs.length} giocat${s.legs.length === 1 ? "a" : "e"} · quota ${s.quotaEqua.toFixed(2)}</span></span><i class="ti ti-chevron-down ch3"></i></summary>
+  <div class="s" style="margin:6px 0 0">${esc(s.sotto)}</div><div style="margin:6px 0 4px">${legs}</div>
   ${s.stessaPartita ? `<div class="s" style="color:${AM};margin-bottom:6px">Più giocate della stessa partita: la probabilità reale è diversa.</div>` : ""}
-  <div class="grid2" style="gap:8px"><button class="btn cp" data-cp="${esc(testoSchedina(s))}" style="margin:0"><i class="ti ti-share"></i> ${navigator.share ? "Condividi" : "Copia"}</button>${btnRegistro({ id: s.chiave, chiave: s.chiave, nome: s.nome, testo: s.legs.map((l) => l.testo).join(" + "), prob: s.prob })}</div></div>`;
+  <div class="grid2" style="gap:8px"><button class="btn cp" data-cp="${esc(testoSchedina(s))}" style="margin:0"><i class="ti ti-share"></i> ${navigator.share ? "Condividi" : "Copia"}</button>${btnRegistro({ id: s.chiave, chiave: s.chiave, nome: s.nome, testo: s.legs.map((l) => l.testo).join(" + "), prob: s.prob })}</div></details>`;
 }
 async function vistaSchedine(force) {
   APP.innerHTML = topBar() + giorniChips() + skel(); bindGiorni();

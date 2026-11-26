@@ -1445,3 +1445,18 @@ function aggiungiToggle15() {
   APP.querySelectorAll("[data-pv]").forEach((b) => (b.onclick = () => { ls.set("pronVista", b.dataset.pv); route(); }));
 }
 ;
+
+;
+// ---- v145: Esplora a gruppi (#/esplora)
+const GRUPPI_ESPL = [
+  ["Oggi", [["#/stasera", "ti-moon", "Stasera", "Le partite della serata"], ["#/seguiti", "ti-star", "Seguiti", "Giocatori e squadre con la ☆"], ["#/infortunati", "ti-bandage", "Infortunati", "Chi è fuori o in dubbio"], ["#/forma", "ti-trending-up", "Forma", "Ultime 5 contro la media"], ["#/news", "ti-news", "Notizie", "In italiano"]]],
+  ["Capire il modello", [["#/valore", "ti-radar", "Valore", "Stima contro quota del bookmaker"], ["#/chiedi", "ti-message-question", "Chiedi all'app", "Domande sulla serata"], ["#/verifica", "ti-clipboard-check", "Verifica", "Dove il modello sbaglia"], ["#/combopartita", "ti-flame", "Combo di partita", "Favorita + giocatore chiave"], ["#/auto", "ti-sparkles", "Schedina automatica", "Scegli la quota"]]],
+  ["Lega NBA", [["#/classifica", "ti-list-numbers", "Classifica", "Est e Ovest"], ["#/calendario", "ti-calendar", "Calendario", "Prossime partite"], ["#/cerca", "ti-search", "Cerca giocatori", "Schede e ultime partite"], ["#/premi", "ti-trophy", "Corsa ai premi", "I più produttivi"], ["#/ideale", "ti-star", "Squadra ideale", "I cinque della notte"], ["#/playoff", "ti-tournament", "Playoff", "Primo turno"], ["#/mercato", "ti-arrows-exchange", "Mercato", "Firme e scambi"], ["#/confronta", "ti-arrows-diff", "Confronto giocatori", "Due a confronto"]]],
+  ["Gruppo e strumenti", [["#/gruppo", "ti-users-group", "Gruppo di amici", "Classifica e sfide"], ["#/costruisci", "ti-wand", "Costruisci una schedina", "Passo passo"], ["#/serata", "ti-moon-stars", "Riepilogo della serata", "Prese e perse"], ["#/glossario", "ti-book-2", "Glossario", "Linea, over, quota…"]]],
+];
+function vistaEsplora() {
+  let h = topBar() + segEsplora("tutto");
+  for (const [t, l] of GRUPPI_ESPL) h += `<div class="sub" style="margin-bottom:4px">${t}</div><div class="card" style="padding:2px 12px">${l.map(([hr, ic, n, d], k) => `<a class="riga rg" href="${hr}" style="color:inherit;${k ? "" : "border-top:0"}"><span style="display:flex;align-items:center;gap:10px;min-width:0"><i class="ti ${ic}" style="color:${OR};font-size:18px"></i><span style="min-width:0"><b style="font-weight:600">${n}</b><span class="s" style="display:block">${d}</span></span></span><i class="ti ti-chevron-right s"></i></a>`).join("")}</div>`;
+  APP.innerHTML = h;
+}
+window.RIDEE.push([/^\/esplora/, vistaEsplora]);
