@@ -128,3 +128,23 @@ async function arbitriPartita(p) {
   const x = (R.partite || []).find((q) => q.casa === p.casa && q.trasf === p.trasf); if (!x) return;
   el.innerHTML = `<div class="card"><div class="s">Arbitri designati${R.data ? " · " + esc(R.data) : ""}</div><div class="riga rg"><span>Capo arbitro</span><b>${esc(x.capo)}</b></div><div class="riga rg"><span>Arbitro</span><b>${esc(x.arbitro)}</b></div><div class="riga rg"><span>Secondo arbitro</span><b>${esc(x.secondo)}</b></div>${x.riserva ? `<div class="riga rg"><span>Riserva</span><b>${esc(x.riserva)}</b></div>` : ""}<div class="cap" style="margin:6px 0 0">Informativo: l'app non ha ancora lo storico dei fischi di ogni arbitro, quindi non cambia le stime.</div></div>`;
 }
+
+// ---- quintetto stimato dai titolari dell'ultima partita: carica i dati e ridisegna le formazioni
+function ridisegnaRosa(D, p, picks) {
+  const el = document.getElementById("rosa"); if (!el) return;
+  const aperti = new Set([...el.querySelectorAll("details.ro[open] .tn")].map((e) => (e.firstChild ? e.firstChild.textContent.trim() : "")));
+  el.innerHTML = corpoRosa(D, p, picks);
+  const tb = document.getElementById("tabrosa"); if (tb && typeof corpoTabellone === "function") tb.innerHTML = corpoTabellone(D, p, picks);
+  el.querySelectorAll("details.ro").forEach((d) => { const n = d.querySelector(".tn"); if (n && n.firstChild && aperti.has(n.firstChild.textContent.trim())) d.open = true; });
+}
+const _rosaUfficiale14 = rosaUfficiale;
+rosaUfficiale = async function (D, p, picks) {
+  try {
+    if (p && p.stato === "pre" && p.giocatori && p.giocatori.length) {
+      window.__ultimiTit = window.__ultimiTit || {}; let nuovo = false;
+      await Promise.all([p.casa, p.trasf].map(async (sq) => { if (window.__ultimiTit[sq]) return; const r = await api("/api/titolari-ultimi?s=" + sq, 3600000).catch(() => null); if (r && r.titolari && r.titolari.length >= 3) { window.__ultimiTit[sq] = new Set(r.titolari.map(String)); nuovo = true; } }));
+      if (nuovo) ridisegnaRosa(D, p, picks);
+    }
+  } catch (e) { console.warn("ultimiTit", e); }
+  return _rosaUfficiale14(D, p, picks);
+};

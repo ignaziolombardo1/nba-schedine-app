@@ -4,6 +4,8 @@ const rosaUff = {}; // id partita -> { pubblicato, titolari } dal server
 
 // i 5 più probabili titolari: prima chi parte spesso da titolare (partite da titolare / giocate), altrimenti chi gioca più minuti
 function titolariStimati(lista) {
+  const sq0 = lista[0] && lista[0].sq, ult = window.__ultimiTit && window.__ultimiTit[sq0]; // titolari dell'ultima partita (ESPN non dà le partite da titolare)
+  if (ult && ult.size >= 3) { const ok = lista.filter((x) => x.pid && ult.has(x.pid) && x.inf !== "out"), resto = lista.filter((x) => !ok.includes(x) && x.inf !== "out").sort((a, b) => (b.minBase || b.min) - (a.minBase || a.min)); if (ok.length >= 3) return [...ok, ...resto].slice(0, 5); }
   const conGs = lista.filter((x) => x.gs != null && x.gp >= 3).length >= Math.min(8, lista.length);
   const chiave = (x) => (conGs && x.gp >= 3 && x.gs != null ? (x.gs / x.gp) * 100 + x.minBase / 100 : x.minBase || x.min);
   return [...lista].sort((a, b) => chiave(b) - chiave(a)).slice(0, 5);
@@ -63,7 +65,7 @@ function bloccoSquadra(D, p, sq, picks, uff, rango, soglia) {
   const inTit = new Set(tit.map((x) => x.pid || x.nome)), panca = lista.filter((x) => !inTit.has(x.pid || x.nome)).sort((a, b) => b.min - a.min);
   const fuori = (p.inf || []).filter((i) => i.sq === sq && i.stato === "out");
   const usaGs = lista.filter((x) => x.gs != null && x.gp >= 3).length >= Math.min(8, lista.length);
-  const spiega = ufficiale ? "Quintetto ufficiale pubblicato da ESPN poco prima della partita." : usaGs ? "Quintetto stimato: i 5 che partono più spesso da titolari in stagione. L'ufficiale compare circa un'ora prima della palla a due." : "Quintetto stimato: i 5 che giocano più minuti. L'ufficiale compare circa un'ora prima della palla a due.";
+  const spiega = ufficiale ? "Quintetto ufficiale pubblicato da ESPN poco prima della partita." : usaGs ? "Quintetto stimato: i 5 che partono più spesso da titolari in stagione. L'ufficiale compare circa un'ora prima della palla a due." : (window.__ultimiTit && window.__ultimiTit[sq] ? "Quintetto stimato: i titolari dell'ultima partita (senza chi è fuori), completati dai giocatori con più minuti." : "Quintetto stimato: i 5 che giocano più minuti.") + " L'ufficiale compare circa un'ora prima della palla a due.";
   const ruoloT = { uff: ufficiale, frase: ufficiale ? "Titolare ufficiale." : "Titolare probabile (stimato).", }, ruoloP = { uff: ufficiale, frase: ufficiale ? "Parte dalla panchina." : "Probabile panchina: entra a partita in corso." };
   let h = `<div class="sub" style="display:flex;align-items:center;gap:8px">${logo(sq, 22)}${esc(T(D, sq).n)}</div>`;
   h += `<div class="s" style="margin:4px 0 6px"><b style="color:${ufficiale ? GR : AM}">${ufficiale ? "Quintetto ufficiale" : "Probabile quintetto"}</b> · ${esc(spiega)}</div>`;

@@ -231,7 +231,7 @@ export async function caricaUltime(sigla, n = 5, stagione = null) {
       if (ab.toUpperCase() === sigla.toUpperCase()) mie = riga; else loro = riga;
     }
     if (!mie || !loro || mie.pt == null || loro.pt == null) continue;
-    out.push({ data: String(ev.date || "").slice(0, 10), avv: loro.ab, casa: mie.casa, pf: mie.pt, pa: loro.pt, vinta: mie.pt > loro.pt });
+    out.push({ id: String(ev.id || ""), data: String(ev.date || "").slice(0, 10), avv: loro.ab, casa: mie.casa, pf: mie.pt, pa: loro.pt, vinta: mie.pt > loro.pt });
   }
   return out.sort((a, b) => (a.data < b.data ? -1 : 1)).slice(-n).reverse();
 }
@@ -387,6 +387,7 @@ export async function caricaQuintetti(eventId, ttl = 60) {
   for (const team of (d.boxscore || {}).players || []) for (const blocco of team.statistics || []) for (const a of blocco.athletes || []) {
     const pid = (a.athlete || {}).id ? String(a.athlete.id) : null; if (!pid) continue;
     out.presenti[pid] = true;
+    { const ab0 = (team.team || {}).abbreviation; if (ab0) (out.perSquadra ||= {})[ab0] ||= { titolari: [], presenti: [] }, out.perSquadra[ab0].presenti.push(pid), a.starter && out.perSquadra[ab0].titolari.push(pid); }
     if (a.starter) { out.titolari[pid] = true; out.pubblicato = true; const ab = (team.team || {}).abbreviation; if (ab) (out.squadre[ab] ||= []).push(a.athlete.lastName || String(a.athlete.displayName || "").split(" ").pop()); }
   }
   return out;

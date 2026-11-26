@@ -812,6 +812,10 @@ export default {
       if (p === "/api/esiti") return J(await apiEsiti(off, data), 120);
       if (p === "/api/storico") return J(await apiStorico(env));
       if (p === "/api/arbitri") { try { return J(await caricaArbitri(), 600); } catch (e) { return J({ data: null, partite: [], errore: String(e.message || e) }, 60); } }
+      if (p === "/api/titolari-ultimi") { // titolari dell'ultima partita finita di una squadra (per il quintetto stimato)
+        const s = (url.searchParams.get("s") || "").toUpperCase(); if (!/^[A-Z]{2,4}$/.test(s)) return ERR("squadra non valida", 400);
+        try { const u = (await caricaUltime(s, 1))[0]; if (!u || !u.id) return J({ s, titolari: [], errore: "nessuna partita finita" }, 300); const Q = await caricaQuintetti(u.id, 21600), t = (Q.perSquadra && Q.perSquadra[s]) || { titolari: [] }; return J({ s, data: u.data, avv: u.avv, titolari: t.titolari }, 3600); } catch (e) { return J({ s, titolari: [], errore: String(e.message || e) }, 60); }
+      }
       if (p === "/api/linee") { const k = chiaveGara((url.searchParams.get("c") || "").toUpperCase(), (url.searchParams.get("t") || "").toUpperCase()), q = dbOk(env) ? (await leggiForma(env)).quote : null; return J({ attivo: !!(q && q.giochi), storia: (q && q.storia && q.storia[k]) || [] }, 120); }
       if (p === "/api/aggiorna-quote") return J(await cronQuote(env, true));
       if (p === "/api/aggiorna-forma") { try { await aggiornaForma(env); const f = await leggiForma(env); return J({ ok: true, giocatori_con_forma: f.n, stato: f.stato || null }); } catch (e) { return J({ errore: e.message }); } }
