@@ -234,7 +234,7 @@ async function vistaStudio(id, force) {
   const gruppi = { p: ["Partita", (x) => ["Vincente", "Totale"].includes(x.tipo)], s: ["Squadre", (x) => x.tipo === "Squadra"], g: ["Giocatori", (x) => ["Punti", "Rimbalzi", "Assist"].includes(x.tipo)] };
   let stt = ls.get("studioTab", "p"); if (!gruppi[stt]) stt = "p";
   h += `<h2>Consigli partita</h2><div class="seg" id="sttab">${Object.entries(gruppi).map(([k, [n, f]]) => `<a data-stt="${k}"${k === stt ? ' class="on"' : ""}>${n} <span class="s">${picks.filter(f).length}</span></a>`).join("")}</div><div id="stc"></div>`;
-  h += `<h2>Confronto tra le squadre</h2><div id="conf14"><div class="skel" style="height:120px"></div></div><div id="lin14"></div>`;
+  h += `<h2>Confronto tra le squadre</h2><div id="conf14"><div class="skel" style="height:120px"></div></div><div id="lin14"></div><div id="arb14"></div>`;
   h += `<h2>Testa a testa</h2><div id="h2h"><div class="skel" style="height:70px"></div></div>`;
   h += `<h2>Ultimi incontri</h2><div id="ultime"><div class="skel" style="height:90px"></div></div>`;
   const lt = D.linee["tot_" + p.casa] ?? (r.mk && r.mk.tot ? r.mk.tot.linea : undefined), lineaT = ls.get("L_tot_" + id, lt ?? "");
@@ -283,6 +283,7 @@ async function vistaStudio(id, force) {
   }).catch(() => { const el = $("#h2h"); if (el) el.innerHTML = `<div class="cap">Scontri diretti non disponibili.</div>`; });
   if (typeof confrontoSquadre === "function") confrontoSquadre(D, p);
   if (typeof storiaLinee === "function") storiaLinee(p);
+  if (typeof arbitriPartita === "function") arbitriPartita(p);
   Promise.all([p.casa, p.trasf].map((s) => api("/api/ultime?s=" + s, 600000).catch(() => null))).then((res) => {
     const el = $("#ultime"); if (!el) return;
     el.innerHTML = res.map((x, i) => ultimeHtml(D, [p.casa, p.trasf][i], x && x.ultime)).join("");

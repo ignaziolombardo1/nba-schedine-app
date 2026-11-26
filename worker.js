@@ -527,6 +527,28 @@ async function traduciTitoli(env, righe) {
   if (cambiato && dbOk(env)) { const chiavi = Object.keys(C); if (chiavi.length > 600) for (const x of chiavi.slice(0, chiavi.length - 600)) delete C[x]; await salvaRigaForma(env, "_trad", { m: C }).catch(() => {}); }
   return righe;
 }
+// Arbitri designati (official.nba.com): tabella «Game / Crew Chief / Referee / Umpire / Alternate». Struttura letta da una pagina reale, ma il parsing del codice HTML non è verificato dal vivo.
+const MEM_ARB = { t: 0, x: null };
+function siglaDaCitta(txt) {
+  let t = String(txt).toLowerCase().replace(/^la\s/, "los angeles ").replace(/\./g, "").trim(); if (!t) return null;
+  const uniche = Object.entries(SQUADRE).filter(([k]) => !["GS", "NO", "NY", "SA", "UTAH", "WSH"].includes(k)), c = uniche.filter(([, v]) => v[0].toLowerCase().startsWith(t) || t.includes(v[1].toLowerCase()) || v[0].toLowerCase() === t);
+  return c.length === 1 ? c[0][0] : null;
+}
+async function caricaArbitri() {
+  if (MEM_ARB.x && Date.now() - MEM_ARB.t < 20 * 60000) return MEM_ARB.x;
+  const r = await fetch("https://official.nba.com/referee-assignments/", { headers: { "user-agent": "Mozilla/5.0", referer: "https://official.nba.com/" }, signal: AbortSignal.timeout(7000) });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const html = await r.text(), pulisci = (s) => s.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#8217;|&#039;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const dm = /(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}/.exec(pulisci(html)), partite = [];
+  for (const riga of html.split(/<tr[\s>]/i).slice(1)) {
+    const celle = [...riga.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) => pulisci(m[1]));
+    const g = celle[0] && /@/.test(celle[0]) ? celle[0].split("@").map((s) => s.trim()) : null; if (!g || celle.length < 4) continue;
+    const trasf = siglaDaCitta(g[0]), casa = siglaDaCitta(g[1]); if (!trasf || !casa) continue;
+    const arb = (s) => (s || "").replace(/\(#?\d+\)/g, "").replace(/\s+/g, " ").trim();
+    partite.push({ casa, trasf, capo: arb(celle[1]), arbitro: arb(celle[2]), secondo: arb(celle[3]), riserva: arb(celle[4]) });
+  }
+  MEM_ARB.x = { data: dm ? dm[0] : null, partite }; MEM_ARB.t = Date.now(); return MEM_ARB.x;
+}
 async function apiDiag(env) {
   const v = [], prova = async (nome, fn) => { try { v.push({ nome, ok: true, dettaglio: String(await fn()) }); } catch (e) { v.push({ nome, ok: false, dettaglio: String(e.message || e) }); } };
   let gg = null, stat = null;
@@ -554,12 +576,7 @@ async function apiDiag(env) {
   });
   // Fonti extra (solo sonde: l'app non le usa ancora). Servono a sapere cosa è raggiungibile da Cloudflare prima di costruirci sopra.
   const sonda = async (url, tipo) => { const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0", accept: "*/*", referer: "https://www.nba.com/" }, signal: AbortSignal.timeout(7000) }); if (!r.ok) throw new Error(`HTTP ${r.status} da ${new URL(url).host}`); return tipo === "json" ? r.json() : r.text(); };
-  let nbaId = null;
-  await prova("Fonte extra: NBA.com tabellone (cdn.nba.com)", async () => { const d = await sonda("https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json", "json"), g = (d.scoreboard || {}).games || []; if (!g.length) throw new Error("risposta senza partite (può essere un giorno senza gare)"); nbaId = (g.find((x) => x.gameStatus >= 2) || g[0]).gameId; return `${g.length} partite, campi per partita: ${Object.keys(g[0]).slice(0, 12).join(", ")}`; });
-  await prova("Fonte extra: NBA.com tabellino con arbitri", async () => { if (!nbaId) throw new Error("serve la sonda del tabellone"); const d = await sonda(`https://cdn.nba.com/static/json/liveData/boxscore/boxscore_${nbaId}.json`, "json"), g = d.game || {}; return `arbitri: ${(g.officials || []).map((o) => o.name).join(", ") || "non ancora assegnati"} · campi: ${Object.keys(g).slice(0, 10).join(", ")}`; });
-  await prova("Fonte extra: NBA.com azioni con coordinate dei tiri", async () => { if (!nbaId) throw new Error("serve la sonda del tabellone"); const d = await sonda(`https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_${nbaId}.json`, "json"), a = (d.game || {}).actions || []; const t = a.find((x) => x.x != null && x.y != null); if (!a.length) throw new Error("nessuna azione (partita non iniziata)"); return `${a.length} azioni · coordinate dei tiri: ${t ? "sì (x,y,area " + (t.area || "-") + ")" : "no"}`; });
-  await prova("Fonte extra: NBA.com quote (cdn.nba.com/odds)", async () => { const d = await sonda("https://cdn.nba.com/static/json/liveData/odds/odds_todaysGames.json", "json"); return `${(d.games || []).length} partite con quote`; });
-  await prova("Fonte extra: arbitri designati (official.nba.com)", async () => { const t = await sonda("https://official.nba.com/referee-assignments/", "testo"); if (t.length < 2000) throw new Error("pagina troppo corta: " + t.length + " caratteri"); return `pagina letta (${t.length} caratteri), contiene la parola «Crew Chief»: ${/crew chief/i.test(t) ? "sì" : "no"}`; });
+  await prova("Arbitri designati (official.nba.com)", async () => { const a = await caricaArbitri(); if (!a.partite.length) throw new Error("pagina letta ma nessuna partita riconosciuta nella tabella: struttura HTML diversa dal previsto"); return `${a.data || "data non letta"}: ${a.partite.length} partite, es. ${a.partite[0].trasf}@${a.partite[0].casa}: ${a.partite[0].capo}, ${a.partite[0].arbitro}, ${a.partite[0].secondo}`; });
   await prova("Fonte extra: report infortuni ufficiale (official.nba.com)", async () => { const t = await sonda("https://official.nba.com/nba-injury-report-2025-26-season/", "testo"); const pdf = (t.match(/https?:[^"'\s]+Injury-Report[^"'\s]+\.pdf/gi) || []); if (!pdf.length) throw new Error("pagina letta (" + t.length + " caratteri) ma nessun link ai PDF"); return `${pdf.length} PDF, ultimo: ${pdf[pdf.length - 1].slice(-40)}`; });
   await prova("Pagine con dati vuoti", async () => {
     const v = [], c = await caricaClassifica().catch(() => null), l = await caricaListaInfortuni().catch(() => null);
@@ -794,6 +811,7 @@ export default {
       }
       if (p === "/api/esiti") return J(await apiEsiti(off, data), 120);
       if (p === "/api/storico") return J(await apiStorico(env));
+      if (p === "/api/arbitri") { try { return J(await caricaArbitri(), 600); } catch (e) { return J({ data: null, partite: [], errore: String(e.message || e) }, 60); } }
       if (p === "/api/linee") { const k = chiaveGara((url.searchParams.get("c") || "").toUpperCase(), (url.searchParams.get("t") || "").toUpperCase()), q = dbOk(env) ? (await leggiForma(env)).quote : null; return J({ attivo: !!(q && q.giochi), storia: (q && q.storia && q.storia[k]) || [] }, 120); }
       if (p === "/api/aggiorna-quote") return J(await cronQuote(env, true));
       if (p === "/api/aggiorna-forma") { try { await aggiornaForma(env); const f = await leggiForma(env); return J({ ok: true, giocatori_con_forma: f.n, stato: f.stato || null }); } catch (e) { return J({ errore: e.message }); } }

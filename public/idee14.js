@@ -120,3 +120,11 @@ async function storiaLinee(p) {
   const ora = (t) => new Date(t).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
   el.innerHTML = `<div class="card"><div class="s">Come si è mossa la linea</div><div class="riga rg"><span>Totale</span><span><b>${a.tot ?? "–"} → ${z.tot ?? "–"}</b> <b style="color:${col(dt, 2)}">${fm(dt)}</b></span></div><div class="riga rg"><span>Spread (casa)</span><span><b>${a.sp ?? "–"} → ${z.sp ?? "–"}</b> <b style="color:${col(ds, 2)}">${fm(ds)}</b></span></div><div class="s" style="margin-top:6px">${s.map((x) => `${ora(x.t)}: ${x.tot ?? "–"} / ${x.sp ?? "–"}`).join(" · ")}</div>${Math.abs(dt || 0) >= 3 ? `<div class="cap" style="margin:6px 0 0">${dt > 0 ? "Il mercato prevede più punti di prima: gli over valgono di più, gli under meno." : "Il mercato prevede meno punti di prima: gli under valgono di più, gli over meno."}</div>` : ""}</div>`;
 }
+
+// ---- arbitri designati per la partita (official.nba.com, di solito pubblicati in giornata)
+async function arbitriPartita(p) {
+  const el = document.getElementById("arb14"); if (!el) return;
+  let R; try { R = await api("/api/arbitri", 600000); } catch { return; }
+  const x = (R.partite || []).find((q) => q.casa === p.casa && q.trasf === p.trasf); if (!x) return;
+  el.innerHTML = `<div class="card"><div class="s">Arbitri designati${R.data ? " · " + esc(R.data) : ""}</div><div class="riga rg"><span>Capo arbitro</span><b>${esc(x.capo)}</b></div><div class="riga rg"><span>Arbitro</span><b>${esc(x.arbitro)}</b></div><div class="riga rg"><span>Secondo arbitro</span><b>${esc(x.secondo)}</b></div>${x.riserva ? `<div class="riga rg"><span>Riserva</span><b>${esc(x.riserva)}</b></div>` : ""}<div class="cap" style="margin:6px 0 0">Informativo: l'app non ha ancora lo storico dei fischi di ogni arbitro, quindi non cambia le stime.</div></div>`;
+}
