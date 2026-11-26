@@ -427,3 +427,8 @@ nav,#miabar{transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);wi
 html.chiaro .lvstrip{background:rgba(244,246,250,.95);border-color:#dde2ea}html.chiaro .lvs{background:#fff;border-color:#dde2ea}
 @media (prefers-reduced-motion:reduce){.liveN.bump{animation:none}}
 .pq{cursor:pointer;border:1px solid var(--bd,#232a3a)}.pq.on{border-color:var(--or);box-shadow:0 0 0 1px var(--or) inset}
+
+/* v138: indice delle partite nei Pronostici */
+.idx15{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}.idx15::-webkit-scrollbar{display:none}
+.idx15 .chipbtn{display:flex;align-items:center;gap:4px;white-space:nowrap;flex:0 0 auto}
+.p15{scroll-margin-top:12px}
