@@ -168,7 +168,7 @@ function schedaPartita(D, p, topPick, cliccabile) {
   let chip, col = MU;
   if (p.stato === "post") { chip = "Finale"; col = GR; } else if (p.stato === "in") { chip = `<span class="dot"></span>Live · ${esc(p.dettaglio)}`; col = OR; } else chip = esc(p.ora);
   const fav = r.margine > 0 ? p.casa : p.trasf;
-  const cc = t.c, ct = v.c.toLowerCase() === cc.toLowerCase() ? "#5a6378" : v.c;
+  const [cc, ct] = typeof coloriSfida === "function" ? coloriSfida(D, p) : [t.c, v.c]; // colori sempre ben distinti tra le due squadre
   const team = (ab, ruolo, stima, l) => `<div class="tm" data-l="${l}">${cliccabile ? logo(ab, 54) : `<a href="#/squadra/${esc(ab)}" aria-label="Pagina ${esc(ab)}" style="display:block;position:relative">${logo(ab, 54)}<span class="nwb"><i class="ti ti-chevron-right"></i></span></a>`}<div class="tn">${esc(T(D, ab).b)}${cliccabile ? "" : stella("sq", ab)}</div><div class="s">${ruolo}</div><div class="st">${esitoStima(p, l, stima)} <span>stimati</span></div></div>`;
   const centro = p.stato === "pre"
     ? `<div class="mid"><div class="ora">${esc(String(p.ora).slice(-5))}</div><div class="s">${esc(String(p.ora).slice(0, 5))}</div></div>`
@@ -185,20 +185,20 @@ function schedaPartita(D, p, topPick, cliccabile) {
     const l = legDa(x), e = esitoPick(x), pt = sq === p.casa ? p.ptCasa : p.ptTr, nm = esc(T(D, sq).b);
     chips += e == null ? `<span class="chip">${nm} over ${l.soglia} · ${pct(x.prob)}</span>` : `<span class="chip" style="color:${e ? GR : RD};font-weight:600">${nm} ${pt} ${e ? "▲" : "▼"} over ${l.soglia}</span>`;
   }
+  const chipsBase = chips;
   if (topPick) chips += `<span class="chip" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, "inherit")}">${segnoEsito(topPick)}${esc(topPick.testo)} · ${pct(topPick.prob)}</span>`;
-  for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) chips += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
-  chips += chipContesto(D, p);
-  if (cliccabile) {
-    const favC = r.pw >= 0.5, lato = (ab, ruolo, n) => `<div class="cl ${ruolo}">${logo(ab, 42)}<div class="tn" title="${esc(ab)}"><b class="n12${p.stato === "pre" && (n === 1) === favC ? " fv" : ""}">${n}</b></div></div>`;
-    const mezzo = p.stato === "pre"
-      ? `<div class="cm"><span class="w">${pct(r.pw)}</span><i>-</i><span class="w">${pct(1 - r.pw)}</span></div>`
-      : `<div class="cm"><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="c">${p.ptCasa ?? 0}</span><i>-</i><span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="t">${p.ptTr ?? 0}</span></div>`;
+  let extra = "";
+  for (const s of [p.casa, p.trasf]) if ((D.b2b || []).includes(s)) extra += `<span class="chip" style="color:${AM}">${esc(T(D, s).b)} back-to-back</span>`;
+  extra += chipContesto(D, p); chips += extra;
+  if (cliccabile) { // scheda compatta della Home: una riga per squadra (casa sopra), poi la giocata migliore
+    const pre = p.stato === "pre", favC = r.pw >= 0.5, pc = Math.round(r.pw * 100);
+    const riga = (ab, ruolo, col, l, pr, fv) => `<div class="tm cr" data-l="${l}"><span class="rl" style="border-color:${col}">${logo(ab, 34)}</span><div class="cn"><div class="tn">${esc(T(D, ab).b)}</div><div class="s">${ruolo}</div></div>${pre ? `<div class="mb"><i style="width:${pr}%;background:${col}"></i></div><b class="pv" style="${fv ? "color:" + col : "opacity:.75"}">${pr}%</b>` : `<span class="big${p.stato === "in" ? " liveN" : ""}" data-sc="${l}">${(l === "c" ? p.ptCasa : p.ptTr) ?? 0}</span>`}</div>`;
     const q = (p.qTr || []).length ? `<div class="qr" data-qt>${(p.qTr || []).map((v, i) => `<span class="${p.stato === "in" && p.periodo === i + 1 ? "cur" : ""}">Q${i + 1} ${(p.qCasa || [])[i] ?? 0}-${v}</span>`).join("")}</div>` : "";
-    const fin = p.stato === "post";
+    const fin = p.stato === "post", altre = (chipsBase + extra).match(/<span class="chip"/g) || [];
+    const mig = topPick ? `<div class="mg"><span class="s">Migliore</span><b class="mt" data-pk="${esc(topPick.id)}" style="color:${colEsito(topPick, "inherit")}">${segnoEsito(topPick)}${esc(topPick.testo)}</b><b style="color:${colEsito(topPick, colProb(topPick.prob))}">${pct(topPick.prob)}</b></div>` : "";
     return `<${fin ? "div" : "a"} class="card gm cmp${p.stato === "in" ? " inlive" : ""}"${fin ? ` data-tab="${p.id}" data-casa="${p.casa}" data-trasf="${p.trasf}"` : ` href="#/partita/${p.id}"`} data-gid="${p.id}" data-st="${p.stato}" style="--ca:${ct};--cb:${cc}${fin ? ";cursor:pointer" : ""}">
-  <div class="riga" style="margin-bottom:4px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span><span class="s">${p.stato === "pre" ? `stimati ${r.ptCasa.toFixed(0)}-${r.ptTr.toFixed(0)}` : fin ? `stimati ${esitoStima(p, "c", r.ptCasa)}-${esitoStima(p, "t", r.ptTr)} · Tabellino` : "Studia"} <i class="ti ${fin ? "ti-chevron-down" : "ti-chevron-right"}"></i></span></div>
-  <div class="cg"><div class="tm cr" data-l="c"><span class="wmk" style="--wc:${cc};font-size:${String(p.casa).length > 3 ? 44 : 56}px" aria-hidden="true">${esc(p.casa)}</span>${lato(p.casa, "ca", 1)}</div>${mezzo}<div class="tm cr" data-l="t"><span class="wmk" style="--wc:${ct};font-size:${String(p.trasf).length > 3 ? 44 : 56}px" aria-hidden="true">${esc(p.trasf)}</span>${lato(p.trasf, "tr", 2)}</div></div>${q}
-  <div class="bar" style="margin:6px 0 6px"><div style="width:${(r.pw * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>${comprimi(chips)}</${fin ? "div" : "a"}>${fin ? `<div class="tabl" id="tb${p.id}" hidden></div>` : ""}`;
+  <div class="riga" style="margin-bottom:6px"><span style="display:flex;align-items:center;gap:4px"><span class="pill" data-pill style="color:${col}">${chip}</span>${p.stato === "post" ? "" : campana(p.id)}</span><span class="s">${pre ? `stimati ${r.ptCasa.toFixed(0)}-${r.ptTr.toFixed(0)}` : fin ? `stimati ${esitoStima(p, "c", r.ptCasa)}-${esitoStima(p, "t", r.ptTr)} · Tabellino` : "Studia"} <i class="ti ${fin ? "ti-chevron-down" : "ti-chevron-right"}"></i></span></div>
+  ${riga(p.casa, "casa", cc, "c", pc, favC)}${riga(p.trasf, "trasferta", ct, "t", 100 - pc, !favC)}${q}${mig}${altre.length ? `<div class="cch">${chipsBase + extra}</div>` : ""}</${fin ? "div" : "a"}>${fin ? `<div class="tabl" id="tb${p.id}" hidden></div>` : ""}`;
   }
   const tag = cliccabile ? "a" : "div", href = cliccabile ? ` href="#/partita/${p.id}"` : "";
   return `<${tag} class="card gm${p.stato === "in" ? " inlive" : ""}"${href} data-gid="${p.id}" data-st="${p.stato}" style="--ca:${ct};--cb:${cc}">

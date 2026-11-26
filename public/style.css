@@ -457,3 +457,14 @@ html.chiaro .lvstrip{background:rgba(244,246,250,.95);border-color:#dde2ea}html.
 .ico15 .ci em{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--or);color:#1a1206;font:700 11px/18px Inter,sans-serif;text-align:center;font-style:normal;padding:0 4px}
 
 .r15 summary,.r15n{color:#fff}.r15 summary{font-size:14px}.hero15 summary.s{color:var(--mut)}
+
+/* v142: scheda partita della Home a righe (una per squadra) */
+.cmp .tm.cr{position:relative;padding:5px 2px;gap:10px;border-radius:12px}
+.cmp .rl{display:inline-flex;border:2.5px solid;border-radius:50%;padding:2px;flex:none;background:rgba(255,255,255,.04)}
+.cmp .rl .tl{width:30px;height:30px;margin:0}
+.cmp .tm.cr .cn{flex:1;min-width:0}.cmp .tm.cr .tn{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmp .mb{width:70px;height:8px;border-radius:4px;background:var(--chip);overflow:hidden;flex:none}.cmp .mb i{display:block;height:100%;border-radius:4px}
+.cmp .pv{width:56px;padding-right:2px;text-align:right;font-family:"Barlow Condensed",Inter,sans-serif;font-size:24px;font-weight:700;flex:none}
+.cmp .tm.cr .big{font-size:30px;min-width:48px;text-align:right}
+.cmp .mg{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);margin-top:6px;padding-top:8px}.cmp .mg .mt{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmp .cch{display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none;flex-wrap:nowrap}.cmp .cch::-webkit-scrollbar{display:none}.cmp .cch .chip{flex:0 0 auto;white-space:nowrap}
