@@ -2,10 +2,10 @@
 "use strict";
 // ---------- LIVE
 function schedaLive(D, p) {
-  const t = T(D, p.casa), v = T(D, p.trasf), cc = t.c, ct = v.c.toLowerCase() === cc.toLowerCase() ? "#5a6378" : v.c;
-  const lato = (ab, r, n, l) => `<div class="tm cr" data-l="${l}"><div class="cl ${r}">${logo(ab, 34)}<div class="tn"><b class="n12">${n}</b>${esc(T(D, ab).b.length > 7 ? ab : T(D, ab).b)}</div></div></div>`;
+  const [cc, ct] = typeof coloriSfida === "function" ? coloriSfida(D, p) : [T(D, p.casa).c, T(D, p.trasf).c]; // colori sempre ben distinti
+  const lato = (ab, ruolo, col, l, pt) => `<div class="tm cr" data-l="${l}"><span class="rl" style="border-color:${col}">${logo(ab, 34)}</span><div class="cn"><div class="tn">${esc(T(D, ab).b)}</div><div class="s">${ruolo}</div></div><span class="big liveN">${pt}</span></div>`;
   return `<div class="card gm cmp inlive" data-lg="${p.id}" data-lv="${p.id}" style="--ca:${ct};--cb:${cc};cursor:pointer"><div class="riga" style="margin-bottom:4px"><span class="pill" style="color:${OR}"><span class="dot"></span>Live · ${esc(p.dettaglio)}</span><span class="s">Giocata al ${Math.round(p.f * 100)}% <i class="ti ti-chevron-${liveAperte.has(String(p.id)) ? "up" : "down"}"></i></span></div>
-  <div class="cg">${lato(p.casa, "ca", 1, "c")}<div class="cm"><span class="big liveN">${p.ptCasa}</span><i>-</i><span class="big liveN">${p.ptTr}</span></div>${lato(p.trasf, "tr", 2, "t")}</div>
+  <div class="lvrows">${lato(p.casa, "casa", cc, "c", p.ptCasa)}${lato(p.trasf, "trasferta", ct, "t", p.ptTr)}</div>
   <div class="qr">${(p.qTr || []).map((q, i) => `<span class="${p.periodo === i + 1 ? "cur" : ""}">Q${i + 1} ${(p.qCasa || [])[i] ?? 0}-${q}</span>`).join("")}</div>
   ${andamentoLive(D, p)}
   <div class="bar" style="margin:6px 0 2px"><div style="width:${(p.pwLive * 100).toFixed(0)}%;background:${cc}"></div><div style="flex:1;background:${ct}"></div></div>

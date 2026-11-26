@@ -40,7 +40,7 @@ schedaLive = function (D, p) {
   else if (p.f >= 0.7 && diff >= 20) et = `<span class="lvet" style="color:${MU};border-color:${MU}"><i class="ti ti-flag"></i> Partita decisa</span>`;
   else if (p.periodo > 4) et = `<span class="lvet" style="color:${AM};border-color:${AM}"><i class="ti ti-clock-plus"></i> Supplementari</span>`;
   const mie = mieiGare().has(String(p.id)) ? `<span class="lvet" style="color:${GR};border-color:${GR}"><i class="ti ti-ticket"></i> Hai una giocata</span>` : "";
-  h = h.replace('<div class="cg">', `<div class="lvets">${et}${mie}</div><div class="cg">`); // il contenitore c'è sempre: la struttura non cambia e le immagini non si ricaricano
+  h = h.replace('<div class="lvrows">', `<div class="lvets">${et}${mie}</div><div class="lvrows">`); // il contenitore c'è sempre: la struttura non cambia e le immagini non si ricaricano
   return h;
 };
 
