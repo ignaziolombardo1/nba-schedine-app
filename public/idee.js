@@ -1531,3 +1531,20 @@ function avvisoBackup() {
   if (Date.now() - u < 14 * 86400e3 || Date.now() < z) return "";
   return `<div class="card riga" style="padding:10px 14px;margin-bottom:10px;border-left:3px solid ${AM}"><div style="min-width:0"><b>Salva un backup</b><div class="s">${u ? "L'ultimo risale a " + Math.floor((Date.now() - u) / 86400e3) + " giorni fa." : "Non ne hai ancora fatto uno."} Registro e conto vivono su questo telefono.</div></div><span style="display:flex;gap:6px"><a class="chipbtn" href="#/impostazioni">Salva</a><button class="chipbtn" onclick="ls.set('backupSnooze',Date.now()+3*86400e3);this.closest('.card').remove()">Dopo</button></span></div>`;
 }
+
+;
+// ---- v148: Statistiche (Tu contro il modello + ultime schedine) e Profilo compatto
+{ const _vs148 = vistaStatistiche; vistaStatistiche = function () {
+  _vs148();
+  try {
+    const R = ls.get("registro", []), ch = R.filter((r) => r.esito === 0 || r.esito === 1); if (ch.length < 5) return;
+    let n = 0, ok = 0, pr = 0;
+    for (const r of ch) if (r.legs && r.es && r.es.length === r.legs.length) r.legs.forEach((l, k) => { const e = r.es[k]; if (e && (e.esito === 0 || e.esito === 1) && l.prob > 0) { n++; ok += e.esito; pr += l.prob; } });
+    const base = n >= 5 ? [ok / n, pr / n, n, "giocate"] : [ch.filter((r) => r.esito === 1).length / ch.length, ch.reduce((a, r) => a + (r.prob || 0), 0) / ch.length, ch.length, "schedine"];
+    const [real, prev, tot, unita] = base, d = Math.round((real - prev) * 100);
+    const ult = [...R].sort((a, b) => (String(a.data) < String(b.data) ? -1 : 1)).slice(-10);
+    const html = `<div class="card"><b style="font-size:13px">Il modello contro i tuoi risultati</b><div class="riga" style="margin:10px 0"><div><div class="s">Il modello prevedeva</div><div class="bigs">${Math.round(prev * 100)}%</div></div><div style="text-align:right"><div class="s">Hai centrato</div><div class="bigs" style="color:${real >= prev ? GR : RD}">${Math.round(real * 100)}%</div></div></div><div class="barr"><i style="width:${Math.round(prev * 100)}%;background:#4aa3ff"></i></div><div class="barr" style="margin-top:4px"><i style="width:${Math.round(real * 100)}%;background:${real >= prev ? GR : RD}"></i></div><div class="cap" style="margin:6px 0 0">${Math.abs(d) < 3 ? "Sei in linea con le previsioni" : d > 0 ? `Stai facendo meglio del previsto di ${d} punti` : `Stai facendo peggio del previsto di ${-d} punti`} su ${tot} ${unita}.</div></div>
+    <div class="card"><b style="font-size:13px">Ultime ${ult.length} schedine</b><div class="quad">${ult.map((r) => `<i title="${esc(r.nome || "")}" style="background:${r.esito === 1 ? GR : r.esito === 0 ? RD : AM}"></i>`).join("")}</div><div class="s" style="margin-top:6px">verde presa · rossa persa · gialla aperta</div></div>`;
+    const el = APP.querySelector(".card.gm"); if (el) el.insertAdjacentHTML("beforebegin", html);
+  } catch {}
+}; }

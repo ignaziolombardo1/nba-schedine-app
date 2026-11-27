@@ -490,3 +490,12 @@ html.chiaro .card.gm.st3{background:linear-gradient(100deg,color-mix(in srgb,var
 .d15{border:1px solid #2a4a38;background:linear-gradient(180deg,#0f1c17,var(--card))}
 .d15 .d15l{padding:8px 0;border-top:1px solid var(--line)}.d15 .d15l:first-of-type{border-top:0}
 .d15m{margin:6px 0 0;padding-left:16px;font-size:12px;color:var(--mut);line-height:1.45}.d15m li{margin:2px 0}
+
+/* v148: Statistiche C, Profilo B */
+.bigs{font-family:"Barlow Condensed",Inter,sans-serif;font-size:38px;font-weight:700;line-height:1}
+.barr{height:10px;border-radius:6px;background:var(--chip);overflow:hidden}.barr i{display:block;height:100%}
+.quad{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.quad i{width:22px;height:22px;border-radius:6px;display:block}
+.pfh2{display:flex;align-items:center;gap:12px;padding:12px 14px;margin:6px 0 10px}
+.pfh2 .av{width:54px;height:54px;border-radius:50%;border:3px solid var(--or);display:flex;align-items:center;justify-content:center;background:var(--card);font-size:24px;color:var(--or);flex:none}
+.pfh2 input{background:transparent;border:0;border-bottom:1px dashed var(--line);color:var(--txt);font-family:inherit;font-weight:700;font-size:18px!important;width:100%;padding:2px 0}
+html.chiaro .pfh2 .av{background:#fff}
