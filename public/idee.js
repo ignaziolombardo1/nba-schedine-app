@@ -1486,6 +1486,7 @@ function scegliDoppia(L) {
 }
 function doppia15(D, p, L) {
   if (p.stato !== "pre") return ""; const d = scegliDoppia(L); if (!d) return "";
+  try { salvaDoppia(p, d); } catch {}
   const pu = d[0].prob * d[1].prob, fq = typeof fattoreQuota === "function" ? (fattoreQuota().f || 1) : 1, q = 1 / pu * 0.9 * fq;
   const leg = (x) => `<div class="d15l"><div class="riga" style="align-items:flex-start"><div style="min-width:0"><b>${esc(x.testo)}</b><div class="s">${esc(NOMI15[x.tipo] || x.tipo)} · stima ${esc(x.stima)}</div></div><span style="display:flex;align-items:center;gap:8px"><b style="color:${colProb(x.prob)};font-size:20px">${pct(x.prob)}</b>${addBtn(x)}</span></div><ul class="d15m">${motiviLeg(x).map((m) => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
   return `<div class="card d15"><div class="s" style="color:${OR};font-weight:600">🎯 Doppia consigliata</div><div class="cap" style="margin:2px 0 6px">Due giocate di questa partita, scelte tra quelle più probabili: una non dipende dall'altra, quindi se una sbaglia l'altra può ancora uscire.</div>${leg(d[0])}${leg(d[1])}<div class="riga" style="margin-top:8px"><span class="s">Insieme ${pct(pu)} · quota giusta circa ${q.toFixed(2)}</span><button class="btn" data-doppia="${esc(d[0].id)}|${esc(d[1].id)}" style="margin:0;padding:7px 12px">Aggiungi tutte e due</button></div><div class="cap" style="margin:6px 0 0">Sono stime del modello, non certezze: la quota del tuo sito sarà un po' più bassa.</div></div>`;
@@ -1497,3 +1498,36 @@ document.addEventListener("click", (e) => {
 });
 // nei Pronostici per partita: sotto la giocata più sicura
 { const _hero15 = hero15; hero15 = function (x) { const L = x && window.__D ? window.__D.picks.filter((q) => q.g === x.g) : [], p = x && window.__D ? window.__D.partite.find((q) => q.id === x.g) : null; return _hero15(x) + (p ? doppia15(window.__D, p, L) : ""); }; }
+
+;
+// ---- v147: storico delle doppie proposte e verifica a fine partita; promemoria backup
+function salvaDoppia(p, d) {
+  const S = ls.get("doppie", {}), k = qs().slice(2) + "|" + p.id; if (S[k]) return;
+  S[k] = { d: qs().slice(2), n: p.casa + "-" + p.trasf, k: d.map((x) => legDa(x).chiave), p: d.map((x) => x.prob), t: d.map((x) => x.testo) };
+  const ks = Object.keys(S).sort(); while (ks.length > 120) delete S[ks.shift()]; ls.set("doppie", S);
+}
+function vistaDoppie() {
+  APP.innerHTML = topBar() + `<h2>Le doppie consigliate</h2><div class="skel" style="height:140px"></div>`;
+  api("/api/storico", 0).then((S) => {
+    const esiti = new Map((S.righe || []).map((r) => [r.chiave, r.esito])), D = ls.get("doppie", {});
+    const L = Object.values(D).map((o) => { const e = o.k.map((c) => (esiti.has(c) ? esiti.get(c) : null)); return { ...o, e, st: e.some((x) => x === 0) ? 0 : e.every((x) => x === 1) ? 1 : null }; }).sort((a, b) => (a.d < b.d ? 1 : -1));
+    const ch = L.filter((o) => o.st != null), vinte = ch.filter((o) => o.st === 1).length, prev = ch.length ? ch.reduce((a, o) => a + o.p[0] * o.p[1], 0) / ch.length : 0;
+    const gambe = L.flatMap((o) => o.e.map((x, i) => ({ x, p: o.p[i] }))).filter((g) => g.x === 0 || g.x === 1), gv = gambe.reduce((a, g) => a + g.x, 0), gp = gambe.length ? gambe.reduce((a, g) => a + g.p, 0) / gambe.length : 0;
+    let h = topBar() + `<a class="back" href="#/esplora"><i class="ti ti-chevron-left"></i>Esplora</a><h2>Le doppie consigliate</h2><div class="cap" style="margin-top:0">Ogni doppia che l'app ti mostra viene salvata sul telefono e controllata a fine partita: così vedi se il criterio funziona davvero.</div>`;
+    if (!L.length) h += `<div class="vuoto">Ancora nessuna doppia salvata. Apri i Pronostici o lo studio di una partita non iniziata: la doppia compare lì e viene registrata.</div>`;
+    else {
+      h += `<div class="row3"><div class="tile"><b>${ch.length ? vinte + "/" + ch.length : "—"}</b><span>doppie centrate</span></div><div class="tile"><b>${ch.length ? Math.round(vinte / ch.length * 100) + "%" : "—"}</b><span>previsto ${ch.length ? Math.round(prev * 100) + "%" : "—"}</span></div><div class="tile"><b>${gambe.length ? gv + "/" + gambe.length : "—"}</b><span>singole giocate${gambe.length ? " · previsto " + Math.round(gp * 100) + "%" : ""}</span></div></div>`;
+      if (ch.length >= 8) h += `<div class="cap">${Math.abs(vinte / ch.length - prev) < 0.07 ? "Le doppie escono circa quanto previsto." : vinte / ch.length < prev ? "Le doppie escono meno di quanto previsto: il criterio è troppo ottimista." : "Le doppie escono più di quanto previsto: il criterio è prudente."}</div>`; else h += `<div class="cap">Servono almeno 8 doppie chiuse per un giudizio: finora ${ch.length}.</div>`;
+      h += `<h2>Una per una</h2>` + L.map((o) => `<div class="card" style="padding:10px 12px;border-left:3px solid ${o.st === 1 ? GR : o.st === 0 ? RD : MU}"><div class="riga"><b>${esc(o.n)}</b><span class="s">${esc(o.d.slice(6, 8) + "/" + o.d.slice(4, 6))} · ${Math.round(o.p[0] * o.p[1] * 100)}%</span></div>${o.t.map((t, i) => `<div class="s" style="margin-top:3px"><b style="color:${o.e[i] === 1 ? GR : o.e[i] === 0 ? RD : MU}">${o.e[i] === 1 ? "✓" : o.e[i] === 0 ? "✗" : "•"}</b> ${esc(t)}</div>`).join("")}</div>`).join("");
+    }
+    APP.innerHTML = h;
+  }).catch((e) => { APP.innerHTML = topBar() + errBox(e); });
+}
+window.RIDEE.push([/^\/doppie/, vistaDoppie]);
+HUB.splice(1, 0, ["#/doppie", "ti-target", "Le doppie consigliate", "Quante ne sono uscite contro quanto previsto"]);
+GRUPPI_ESPL[1][1].splice(3, 0, ["#/doppie", "ti-target", "Le doppie consigliate", "Verifica a fine partita"]);
+function avvisoBackup() {
+  const reg = ls.get("registro", []); if (reg.length < 3) return ""; const u = ls.get("ultimoBackup", 0), z = ls.get("backupSnooze", 0);
+  if (Date.now() - u < 14 * 86400e3 || Date.now() < z) return "";
+  return `<div class="card riga" style="padding:10px 14px;margin-bottom:10px;border-left:3px solid ${AM}"><div style="min-width:0"><b>Salva un backup</b><div class="s">${u ? "L'ultimo risale a " + Math.floor((Date.now() - u) / 86400e3) + " giorni fa." : "Non ne hai ancora fatto uno."} Registro e conto vivono su questo telefono.</div></div><span style="display:flex;gap:6px"><a class="chipbtn" href="#/impostazioni">Salva</a><button class="chipbtn" onclick="ls.set('backupSnooze',Date.now()+3*86400e3);this.closest('.card').remove()">Dopo</button></span></div>`;
+}

@@ -370,6 +370,18 @@ async function inviaRiepilogo(env, off) {
   const gdg = [...prePick].sort((a, b) => b.prob - a.prob)[0];
   if (gdg) t += `\n⭐ Giocata del giorno: ${gdg.testo} (${gdg.partita}) ${pc(gdg.prob)}\n`;
   if (prePick.length) t += `\nMigliori giocate\n` + prePick.map((x) => `• ${x.testo} (${x.partita}) ${pc(x.prob)}`).join("\n");
+  { // una doppia consigliata per partita: due giocate probabili, di giocatori diversi e al massimo una di partita (come nell'app)
+    const gioco = ["Vincente", "Totale", "Squadra"], righe = [];
+    for (const p of pre.slice(0, 8)) {
+      const c = D.picks.filter((x) => x.g === p.id && x.prob >= 0.6 && !x.dubbio); let best = null;
+      for (let a = 0; a < c.length; a++) for (let b = a + 1; b < c.length; b++) {
+        const A = c[a], B = c[b]; if (A.pid && A.pid === B.pid) continue; if (gioco.includes(A.tipo) && gioco.includes(B.tipo)) continue;
+        const s = A.prob + B.prob + (A.tipo !== B.tipo ? 0.02 : 0); if (!best || s > best[0]) best = [s, A, B];
+      }
+      if (best) righe.push(`• ${p.casa}-${p.trasf}: ${best[1].testo} (${pc(best[1].prob)}) + ${best[2].testo} (${pc(best[2].prob)}) → insieme ${pc(best[1].prob * best[2].prob)}`);
+    }
+    if (righe.length) t += `\n\n🎯 Doppie consigliate\n` + righe.join("\n");
+  }
   const sch = (D.schedine || []).filter((x) => /^q\d+$/.test(x.id));
   for (const s of sch.length ? sch : [(D.schedine || []).find((x) => x.id === "sicura") || (D.schedine || [])[0]].filter(Boolean))
     t += `\n\n${s.id === "q20" ? "💣" : "🎟"} ${s.nome} · quota giusta ${s.quotaEqua.toFixed(2)} · si centra il ${pc(s.prob)}\n` + s.legs.map((l) => `• ${l.testo} (${l.partita}) ${pc(l.prob)}`).join("\n");

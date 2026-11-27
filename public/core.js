@@ -51,6 +51,10 @@ const qs = () => "d=" + (typeof giorno === "number" ? etGiorno(giorno).ymd : gio
 const dati = async (force) => { const D = await datiBase(force); window.__D = D; return D; };
 const datiBase = async (force) => {
   if (force) delete cache["/api/giorno?" + qs()];
+  if (!force) { // apertura veloce: ultimi dati salvati (se recenti e senza partite in corso), poi aggiornamento in sottofondo
+    const k = "/api/giorno?" + qs(); let o = null; try { o = JSON.parse(localStorage.getItem("D|" + k) || "null"); } catch {}
+    if (o && o.d && o.d.partite && Date.now() - o.t < 3 * 60e3 && !o.d.partite.some((p) => p.stato === "in")) { if (Date.now() - o.t > 45e3) api(k, 0).catch(() => {}); return applicaImp(o.d); }
+  }
   try { return applicaImp(await api("/api/giorno?" + qs(), 40000)); }
   catch (e) { const k = "/api/giorno?" + qs(), o = (() => { try { return JSON.parse(localStorage.getItem("D|" + k) || "null"); } catch { return null; } })(); if (o && o.d && Date.now() - o.t < 36 * 3600e3) return applicaImp({ ...o.d, erroreAgg: String(e.message || e), salvatoAlle: o.t }); throw e; }
 };
