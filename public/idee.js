@@ -1460,3 +1460,40 @@ function vistaEsplora() {
   APP.innerHTML = h;
 }
 window.RIDEE.push([/^\/esplora/, vistaEsplora]);
+
+;
+// ---- v146: «Doppia consigliata» per partita: 2 giocate scelte tra forma, ultime partite, difesa e compagni fuori
+const GIOCO15 = ["Vincente", "Totale", "Squadra"];
+function formaLeg(x) { const d = x.det; if (!d || d.f10 == null || !(d.st > 0)) return 0; const dd = (d.f10 - d.st) / d.st; return dd >= 0.12 ? 1 : dd <= -0.12 ? -1 : 0; }
+function motiviLeg(x) {
+  const d = x.det, r = []; if (!d) return [x.motivo || "Probabilità calcolata dal modello."];
+  if (d.f10 != null && d.st > 0) { const dd = Math.round((d.f10 - d.st) / d.st * 100), f = formaLeg(x); r.push(`Ultime ${d.nf} partite: ${vir(d.f10)} contro ${vir(d.st)} di media stagione (${dd >= 0 ? "+" : ""}${dd}%)${f > 0 ? " · 🔥 in forma" : f < 0 ? " · in calo, per questo la linea è prudente" : " · stabile"}.`); }
+  else r.push(`Media stagione ${vir(d.st)}: le ultime partite non sono ancora disponibili.`);
+  if (d.emp) r.push(`Ha superato la linea in ${d.emp.h} delle ultime ${d.emp.n} partite.`);
+  if (d.dif != null && Math.abs(d.dif) >= 3) r.push(d.dif > 0 ? `Difesa avversaria più debole della media (+${vir(d.dif)}%).` : `Difesa avversaria più dura della media (${vir(d.dif)}%): già considerata nella stima.`);
+  if (d.ass && d.ass.length && d.boost) r.push(`Compagni fuori (${d.ass.join(", ")}): più tiri e più spazio per lui.`);
+  if (d.min) r.push(`Minuti attesi: ${vir(d.min)}.`);
+  if (d.mk) r.push(`Il bookmaker ha messo la linea a ${vir(d.mk.linea)}${d.mk.linea > (+(/over ([\d.]+)/.exec(x.testo || "") || [])[1] || 0) ? ": la nostra scelta è più prudente." : "."}`);
+  return r;
+}
+function scegliDoppia(L) {
+  const c = L.filter((x) => x.prob >= 0.6 && !x.dubbio).map((x) => ({ x, s: x.prob + formaLeg(x) * (formaLeg(x) > 0 ? 0.03 : 0.06) })), mie = [];
+  for (let a = 0; a < c.length; a++) for (let b = a + 1; b < c.length; b++) {
+    const A = c[a].x, B = c[b].x; if (A.pid && A.pid === B.pid) continue; if (GIOCO15.includes(A.tipo) && GIOCO15.includes(B.tipo)) continue;
+    mie.push([c[a].s + c[b].s + (A.tipo !== B.tipo ? 0.02 : 0), A, B]);
+  }
+  mie.sort((p, q) => q[0] - p[0]); return mie[0] ? [mie[0][1], mie[0][2]] : null;
+}
+function doppia15(D, p, L) {
+  if (p.stato !== "pre") return ""; const d = scegliDoppia(L); if (!d) return "";
+  const pu = d[0].prob * d[1].prob, fq = typeof fattoreQuota === "function" ? (fattoreQuota().f || 1) : 1, q = 1 / pu * 0.9 * fq;
+  const leg = (x) => `<div class="d15l"><div class="riga" style="align-items:flex-start"><div style="min-width:0"><b>${esc(x.testo)}</b><div class="s">${esc(NOMI15[x.tipo] || x.tipo)} · stima ${esc(x.stima)}</div></div><span style="display:flex;align-items:center;gap:8px"><b style="color:${colProb(x.prob)};font-size:20px">${pct(x.prob)}</b>${addBtn(x)}</span></div><ul class="d15m">${motiviLeg(x).map((m) => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
+  return `<div class="card d15"><div class="s" style="color:${OR};font-weight:600">🎯 Doppia consigliata</div><div class="cap" style="margin:2px 0 6px">Due giocate di questa partita, scelte tra quelle più probabili: una non dipende dall'altra, quindi se una sbaglia l'altra può ancora uscire.</div>${leg(d[0])}${leg(d[1])}<div class="riga" style="margin-top:8px"><span class="s">Insieme ${pct(pu)} · quota giusta circa ${q.toFixed(2)}</span><button class="btn" data-doppia="${esc(d[0].id)}|${esc(d[1].id)}" style="margin:0;padding:7px 12px">Aggiungi tutte e due</button></div><div class="cap" style="margin:6px 0 0">Sono stime del modello, non certezze: la quota del tuo sito sarà un po' più bassa.</div></div>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-doppia]"); if (!b) return; e.preventDefault();
+  const L = miaLeggi(); for (const id of b.dataset.doppia.split("|")) { const l = PM.get(id); if (l && !L.some((x) => x.id === l.id)) L.push(l); }
+  ls.set("mia", L); barraMia(); b.textContent = "✓ Aggiunte"; b.closest(".d15").querySelectorAll("[data-add]").forEach((a) => { a.classList.add("on"); a.textContent = "✓"; });
+});
+// nei Pronostici per partita: sotto la giocata più sicura
+{ const _hero15 = hero15; hero15 = function (x) { const L = x && window.__D ? window.__D.picks.filter((q) => q.g === x.g) : [], p = x && window.__D ? window.__D.partite.find((q) => q.id === x.g) : null; return _hero15(x) + (p ? doppia15(window.__D, p, L) : ""); }; }

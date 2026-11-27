@@ -220,6 +220,7 @@ async function vistaStudio(id, force) {
   let h = `<a class="back" href="#/"><i class="ti ti-chevron-left"></i>Partite</a>` + schedaPartita(D, p, picks[0], false);
   { const best = [...picks].sort((a, b) => b.prob - a.prob)[0];
     if (best) h += `<div class="gdg" style="margin-top:10px"><div class="gt">Giocata migliore</div><div class="gx">${esc(best.testo)}</div><div class="gp"><b style="color:${colProb(best.prob)}">${Math.round(best.prob * 100)}%</b><span class="s">stima ${esc(best.stima)}</span></div><div class="gb"><i style="width:${Math.round(best.prob * 100)}%"></i></div></div>`; }
+  if (typeof doppia15 === "function") h += doppia15(D, p, picks);
   { const n = ls.get("hintNews", 0); if (n < 3) { ls.set("hintNews", n + 1); h += `<div class="cap" style="margin:8px 0 0"><i class="ti ti-news"></i> Tocca il logo di una squadra per la sua pagina e le sue notizie.</div>`; } }
   // 1) i migliori delle due squadre con le loro medie
   if (typeof rosaPartita === "function" && p.giocatori.length) h += rosaPartita(D, p, picks);
