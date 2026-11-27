@@ -1417,14 +1417,15 @@ vistaCombo = async function (force) {
   APP.innerHTML = topBar() + giorniChips() + skel(); bindGiorni();
   let D; try { D = await dati(force); } catch (e) { APP.innerHTML = topBar() + giorniChips() + errBox(e); bindGiorni(); return; }
   const rango = (p) => (p.stato === "post" ? 2e12 : 0) + Date.parse(p.iso || 0) || 0, partite = [...D.partite].sort((a, b) => rango(a) - rango(b)), prossima = partite.find((p) => p.stato !== "post");
+  let sel = window.__sel15; if (sel !== "tutte" && !partite.some((p) => p.id === sel)) sel = (prossima || partite[0] || {}).id;
   let h = topBar(D) + giorniChips() + toggle15();
   if (!partite.length) h += `<div class="vuoto">Nessuna partita per questo giorno.</div>`;
   else {
-    h += `<div class="idx15">${partite.map((p) => { const mig = D.picks.filter((x) => x.g === p.id).sort((a, b) => b.prob - a.prob)[0], st = p.stato === "in" ? `<span style="color:${GR}">● Live ${esc(p.dettaglio || "")}</span>` : p.stato === "post" ? "Finale" : esc(String(p.ora).slice(-5)); return `<button class="idc${prossima === p ? " on" : ""}${p.stato === "post" ? " fin" : ""}" data-j="${esc(p.id)}"><b>${esc(p.casa)}-${esc(p.trasf)}</b><span class="s">${st}</span></button>`; }).join("")}</div>`;
+    h += `<div class="idx15"><button class="idc${sel === "tutte" ? " on" : ""}" data-j="tutte"><b>Tutte</b><span class="s">${partite.length} partite</span></button>${partite.map((p) => { const mig = D.picks.filter((x) => x.g === p.id).sort((a, b) => b.prob - a.prob)[0], st = p.stato === "in" ? `<span style="color:${GR}">● Live ${esc(p.dettaglio || "")}</span>` : p.stato === "post" ? "Finale" : esc(String(p.ora).slice(-5)); return `<button class="idc${sel === p.id ? " on" : ""}${p.stato === "post" ? " fin" : ""}" data-j="${esc(p.id)}"><b>${esc(p.casa)}-${esc(p.trasf)}</b><span class="s">${st}</span></button>`; }).join("")}</div>`;
     h += `<div class="ico15">${SC.map(([t, ic, tipi], i) => { const n = D.picks.filter((x) => tipi.includes(x.tipo)).length; return n ? `<a href="#/categoria/${i}"><span class="ci"><i class="ti ${ic}"></i><em>${n}</em></span><span class="s">${esc(t.replace("Punti giocatori", "Punti").replace("Totali partita", "Totali").replace("Punti squadre", "Squadre").replace("Vincente", "Chi vince"))}</span></a>` : ""; }).join("")}</div>`;
     for (const p of partite) {
       const L = D.picks.filter((x) => x.g === p.id), top = [...L].sort((a, b) => b.prob - a.prob)[0];
-      h += `<section id="p15-${esc(p.id)}" class="p15" style="${p.stato === "post" ? "opacity:.8" : ""}">${intestazione15(D, p)}`;
+      h += `<section id="p15-${esc(p.id)}" class="p15"${sel !== "tutte" && sel !== p.id ? " hidden" : ""} style="${p.stato === "post" ? "opacity:.8" : ""}">${intestazione15(D, p)}`;
       if (!L.length) h += `<div class="cap">Nessuna giocata sopra la soglia per questa partita.</div>`;
       h += hero15(top);
       for (const tipo of ORD15) {
@@ -1436,7 +1437,12 @@ vistaCombo = async function (force) {
   }
   h += `<details style="margin-top:10px"><summary><b>Chiedi all'app</b></summary>${typeof chiediBlocco === "function" ? chiediBlocco() : ""}</details>`;
   APP.innerHTML = h; bindGiorni(); aggiungiToggle15();
-  APP.querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => { const e = document.getElementById("p15-" + b.dataset.j); if (e) e.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+  APP.querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => { // tocca una partita: si apre solo quella; «Tutte» le mostra tutte
+    const j = b.dataset.j; window.__sel15 = j;
+    APP.querySelectorAll(".idc").forEach((x) => x.classList.toggle("on", x === b));
+    APP.querySelectorAll(".p15").forEach((s) => { s.hidden = j !== "tutte" && s.id !== "p15-" + j; });
+    const e = j === "tutte" ? null : document.getElementById("p15-" + j); const ix = APP.querySelector(".idx15"); (e || ix || APP).scrollIntoView({ behavior: "smooth", block: "start" }); b.scrollIntoView({ inline: "center", block: "nearest" });
+  }));
   APP.querySelectorAll(".r15 summary").forEach((sm) => sm.addEventListener("click", (ev) => { if (ev.target.closest("[data-add]")) ev.preventDefault(); }));
 };
 function toggle15() { const v = ls.get("pronVista", "partita"); return `<div class="tabs" id="tg15" style="margin:8px 0"><button class="chipbtn${v === "partita" ? " on" : ""}" data-pv="partita">Per partita</button><button class="chipbtn${v === "tipo" ? " on" : ""}" data-pv="tipo">Per tipo</button></div>`; }

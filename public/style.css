@@ -499,3 +499,4 @@ html.chiaro .card.gm.st3{background:linear-gradient(100deg,color-mix(in srgb,var
 .pfh2 .av{width:54px;height:54px;border-radius:50%;border:3px solid var(--or);display:flex;align-items:center;justify-content:center;background:var(--card);font-size:24px;color:var(--or);flex:none}
 .pfh2 input{background:transparent;border:0;border-bottom:1px dashed var(--line);color:var(--txt);font-family:inherit;font-weight:700;font-size:18px!important;width:100%;padding:2px 0}
 html.chiaro .pfh2 .av{background:#fff}
+.p15[hidden]{display:none}

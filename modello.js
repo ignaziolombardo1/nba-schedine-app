@@ -7,6 +7,7 @@ export const STD = { Totale: 19, Spread: 13.5, Squadra: 12.5 };
 export const RISCHIO_DNP = 0.97; // riposo non annunciato, uscita presto per infortunio o panchina lunga
 export const K_EMP = 12; // peso delle ultime partite vere rispetto alla stima del modello (come se fossero 12 partite di prior)
 export const PROB_MIN = 0.70;
+export const PROB_GIOC = 0.60; // i giocatori partono da una linea più alta (probabilità 60%), vicina a quella dei bookmaker; le schedine usano ancora la linea prudente (PROB_MIN)
 export const MERCATI = {
   Punti: { k: "pts", unita: "pt", cv: 0.30, stdMin: 3.0, minimo: 14.5, scalini: [9.5, 12.5, 14.5, 17.5, 19.5, 22.5, 24.5, 27.5, 29.5, 32.5, 34.5, 39.5] },
   Rimbalzi: { k: "reb", unita: "rimb.", cv: 0.40, stdMin: 1.5, minimo: 5.5, scalini: [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5] },
@@ -95,9 +96,9 @@ export function proiettaGiocatori(sig, avv, teams, players, infortuni = {}, form
         const sd = stdGiocatore(v, minAtt, m);
         const arrE = f && f[c.k], kE = cb && cb.mk ? 2 * K_EMP : K_EMP;
         const lad = c.scalini.map((t) => { const e = mescolaEmp(probOver(v, t, sd), arrE, t, kE); return { t, p: e.p, h: e.h, n: e.n }; }).filter((x) => x.p >= 0.2 && x.p <= 0.97);
-        const buone = lad.filter((x) => x.p * pg * RISCHIO_DNP >= PROB_MIN);
+        const buone = lad.filter((x) => x.p * pg * RISCHIO_DNP >= PROB_GIOC), buone70 = lad.filter((x) => x.p * pg * RISCHIO_DNP >= PROB_MIN);
         o[c.k] = { v, vModello: r1(val[m]), mk: cb && cb.mk ? { ...cb.mk, pFin: probOver(v, cb.mk.linea, sd) } : null, sd: r1(sd * 100) / 100, media: r1(m === "Punti" ? p.pts : m === "Rimbalzi" ? p.reb : p.ast), lad: lad.map((x) => [x.t, Math.round(x.p * 1000) / 1000]),
-                   rec: buone.length ? Math.max(...buone.map((x) => x.t)) : null, pg,
+                   rec: buone.length ? Math.max(...buone.map((x) => x.t)) : null, pg, rec70: buone70.length ? Math.max(...buone70.map((x) => x.t)) : null, pRec70: buone70.length ? buone70.reduce((a, x) => (x.t > a.t ? x : a)).p : null,
                    ...(() => { const b = buone.length ? buone.reduce((a, x) => (x.t > a.t ? x : a)) : null; return b ? { pRec: b.p, emp: b.h == null ? null : { h: b.h, n: b.n } } : { pRec: null, emp: null }; })() };
       }
       return o;
@@ -112,7 +113,7 @@ function dettaglio(p, c, o, pr) {
   const i = o.lad.findIndex((x) => x[0] === o.rec);
   return { st: o.media, f10, nf: u ? u.length : 0, min: p.min, minBase: p.minBase, dif: c.k === "pts" ? p.dif : null,
     ass: p.assenze, boost: p.boost ? p.boost[c.k] : null, vm: o.vModello, mk: o.mk ? { linea: o.mk.linea, pMk: o.mk.pMk } : null,
-    emp: o.emp, sd: o.sd, lad: i >= 0 ? o.lad.slice(Math.max(0, i - 1), i + 4) : o.lad.slice(0, 5), pf: Math.round(pr * 1000) / 1000 };
+    emp: o.emp, sd: o.sd, lad: i >= 0 ? o.lad.slice(Math.max(0, i - 1), i + 4) : o.lad.slice(0, 5), pf: Math.round(pr * 1000) / 1000, sg: PROB_GIOC };
 }
 export function consigli(partite) {
   // partite: [{id, casa, trasf, r, giocatori}] -> lista di giocate ordinate per probabilità
@@ -151,6 +152,7 @@ export function consigli(partite) {
           const motivoPg = pg < 1 ? ` Attenzione: è in dubbio e scende in campo con probabilità del ${Math.round(pg * 100)}%: la percentuale tiene già conto di questo rischio.` : "";
           out.push({ ...base, id: `${c.k}_${g.id}_${p.pid || p.nome}`, tipo: m, squadra: sq, pid: p.pid, testo: `${p.nome} over ${o.rec} ${c.unita}`, stima: o.v.toFixed(1), prob: pr, motivo: motivo + motivoPg, dubbio: pg < 1 ? pg : null,
             det: dettaglio(p, c, o, pr),
+            sic: o.rec70 != null && o.rec70 !== o.rec ? { testo: `${p.nome} over ${o.rec70} ${c.unita}`, prob: o.pRec70 * pg * RISCHIO_DNP } : null, soloAlta: o.rec70 == null,
             mercato: mk ? { linea: mk.linea, pMk: mk.pMk, pMod: mk.pMod, pFin: mk.pFin, div: mk.div } : null });
         }
       }
@@ -258,7 +260,12 @@ export function segnaliLive(gara, box, giocatori) {
 // Una sola giocata per partita (le giocate della stessa partita sono legate tra loro). Probabilità unita = prodotto delle singole.
 
 // schedine "a quota": 2, 5, 10 e una bomba da 20. La quota è quella "giusta" (1/probabilità): i bookmaker pagano un po' meno.
-export function proposteQuota(picks, gare) {
+// per le schedine i giocatori restano sulla linea prudente (probabilità ≥ 70%): le linee più alte sono solo per le giocate singole
+function sicure(picks) {
+  return picks.filter((x) => !(x.pid && x.soloAlta)).map((x) => (x.sic ? { ...x, testo: x.sic.testo, prob: Math.min(0.97, x.sic.prob * (x.probGrezza ? x.prob / x.probGrezza : 1)) } : x)).sort((a, b) => b.prob - a.prob);
+}
+export function proposteQuota(picks0, gare) {
+  const picks = sicure(picks0);
   const pre = new Map(gare.filter((g) => g.stato === "pre").map((g) => [g.id, g]));
   const cand = picks.filter((x) => pre.has(x.g)).sort((a, b) => b.prob - a.prob);
   const nomi = { 2: ["Quota 2", "Poche giocate sicure", "ok", 0.72], 5: ["Quota 5", "Una via di mezzo", "mid", 0.68], 10: ["Quota 10", "Rischio alto, paga bene", "alta", 0.62], 20: ["La bomba quota 20", "Difficile: giocala solo con poco", "alta", 0.58] };
@@ -290,7 +297,8 @@ export function proposteQuota(picks, gare) {
   }
   return out;
 }
-export function proposte(picks, gare) {
+export function proposte(picks0, gare) {
+  const picks = sicure(picks0);
   const pre = new Map(gare.filter((g) => g.stato === "pre").map((g) => [g.id, g]));
   const valide = picks.filter((x) => pre.has(x.g) && !["Squadra"].includes(x.tipo));
   const migliorePerPartita = (soglia, escludi = []) => {
