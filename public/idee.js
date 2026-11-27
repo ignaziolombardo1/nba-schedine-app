@@ -1435,7 +1435,7 @@ vistaCombo = async function (force) {
       h += `<a class="btn" style="display:block;text-align:center;margin:8px 0 18px" href="#/partita/${esc(p.id)}">Studia ${esc(p.casa)}-${esc(p.trasf)}</a></section>`;
     }
   }
-  h += `<details style="margin-top:10px"><summary><b>Chiedi all'app</b></summary>${typeof chiediBlocco === "function" ? chiediBlocco() : ""}</details>`;
+  h += `<details style="margin-top:10px"><summary><b>Chiedi all'app</b></summary>${typeof chiediBlocco === "function" ? chiediBlocco() : ""}</details><div class="cap">App v${VERSIONE} · linee giocatori dal ${Math.round(((impo().soglia <= 0.70 ? 0.60 : impo().soglia)) * 100)}%</div>`;
   APP.innerHTML = h; bindGiorni(); aggiungiToggle15();
   APP.querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => { // tocca una partita: si apre solo quella; «Tutte» le mostra tutte
     const j = b.dataset.j; window.__sel15 = j;
